@@ -1529,7 +1529,7 @@ async function postAgent(payload){
 async function pushToDevice(){
   let dev;
   try{
-    dev = await ensureHid(true);
+    dev = await ensureHid(false);
   }catch(e){
     toast("未连接设备：" + e.message);
     return;
