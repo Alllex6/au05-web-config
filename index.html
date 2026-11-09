@@ -124,6 +124,23 @@ dialog::backdrop{background:rgba(16,24,40,.4)}
 .kbd{display:inline-flex;align-items:center;height:22px;padding:0 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;font-size:11.5px;background:#fff;color:#3B444C;font-family:ui-monospace,Menlo,monospace}
 .notice{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:#FDF7EC;border:1px solid #F6E2BE;color:#7A4E12;font-size:12.5px}
 .help{color:#0F766E;background:#E9F5F2;border-color:#C9E6E1;color:#0B5E58}
+/* 快捷键录制 */
+.hk-box{border:1px dashed var(--line);border-radius:12px;padding:12px;background:#FBFCFD;display:flex;flex-direction:column;gap:10px;transition:.15s}
+.hk-box.rec{border-color:var(--accent);background:#F2FBF9;box-shadow:0 0 0 3px rgba(15,118,110,.08)}
+.hk-preview{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:38px}
+.hk-keycap{min-width:36px;height:36px;padding:0 9px;border:1px solid var(--line);border-bottom-width:2px;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#2C353B;box-shadow:0 1px 0 rgba(16,24,40,.05)}
+.hk-keycap.mod{background:#F1F4F6;color:#4A555D;min-width:34px}
+.hk-keycap.ghost{background:#fff;border-style:dashed;color:#98A2AC}
+.hk-keycap.new{animation:hkIn .12s ease-out}
+@keyframes hkIn{from{transform:translateY(2px);opacity:.4}to{transform:none;opacity:1}}
+.hk-empty{color:#98A2AC;font-size:12.5px}
+.hk-plus{color:#98A2AC;font-size:12px}
+.hk-err{color:var(--danger);font-size:12px;margin-top:8px;display:flex;gap:6px;align-items:flex-start}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{height:27px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:11.5px;cursor:pointer;color:#3B444C}
+.chip:hover{border-color:#BFD9D5;background:#F7FCFB;color:#0B5E58}
+.rec-dot{width:7px;height:7px;border-radius:50%;background:#C2410C;animation:pulse 1s infinite;display:inline-block;margin-right:6px}
+@keyframes pulse{50%{opacity:.3}}
 @media (max-width:960px){
   .shell{grid-template-columns:1fr}
   .rail{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}
@@ -226,9 +243,28 @@ dialog::backdrop{background:rgba(16,24,40,.4)}
           </div>
           <div class="field" id="paramField"><label class="lbl" id="paramLabel">参数</label><input type="text" id="paramInput" placeholder=""/></div>
           <div class="field" id="hotkeyField" style="display:none">
-            <label class="lbl">快捷键</label>
-            <div class="row"><input type="text" id="hotkeyInput" placeholder="点“录制”后按键" readonly/><button class="btn sm" id="btnRecord">录制</button></div>
-            <div class="hint">录制时聚焦本页，按下组合键即可；系统保留组合会被拒绝。</div>
+            <div class="row" style="justify-content:space-between;margin-bottom:6px">
+              <label class="lbl" style="margin:0">快捷键</label>
+              <span class="tag" id="hotkeyScope">全局 · 需本地 Agent</span>
+            </div>
+            <div class="hk-box" id="hkBox">
+              <div class="hk-preview" id="hkPreview"></div>
+              <div class="row">
+                <button class="btn sm primary" id="btnRecord">开始录制</button>
+                <button class="btn sm" id="btnClearHotkey">清除</button>
+                <span class="hint" style="margin:0" id="hkStatus"></span>
+              </div>
+            </div>
+            <div class="hk-err" id="hkErr" style="display:none"></div>
+            <div class="field" style="margin-top:10px">
+              <label class="lbl">或手动输入</label>
+              <input type="text" id="hotkeyInput" placeholder="例如 cmd+shift+p 或 ⌘⇧P"/>
+            </div>
+            <div class="field" style="margin-top:10px">
+              <label class="lbl">常用组合，点一下就用</label>
+              <div class="chips" id="hkChips"></div>
+            </div>
+            <div class="hint">按 Esc 取消录制；只按 Backspace 可清空。系统已占用的组合会被拦下。</div>
           </div>
           <div class="field" id="pluginField" style="display:none"><label class="lbl">插件动作</label><select id="pluginAction"></select></div>
           <div class="row mt16"><button class="btn primary" id="btnSave">保存绑定</button><button class="btn" id="btnClear">清除</button><button class="btn ghost" id="btnRollback">回滚上次</button></div>
@@ -353,7 +389,10 @@ const ACTIONS = [
   {id:"ai",name:"AI 指令",field:"提示词 / 目标工具",ph:"claude-code: 解释选中代码"},
   {id:"plugin",name:"插件动作",field:null,ph:""}
 ];
-const RESERVED = ["cmd+tab","ctrl+alt+del","alt+f4","cmd+q","win+l","cmd+space","ctrl+shift+esc"];
+const RESERVED = [
+  "cmd+tab","cmd+q","cmd+space","cmd+shift+3","cmd+shift+4","cmd+shift+5","cmd+backtick",
+  "ctrl+alt+del","alt+f4","alt+tab","win+l","ctrl+shift+esc","ctrl+space"
+];
 const PERM_LABEL = {input:"监听按键输入",clipboard:"读写剪贴板",network:"访问网络",filesystem:"读写本地文件"};
 const PERM_ALLOWED = ["input","clipboard","network","filesystem"];
 
@@ -534,13 +573,105 @@ function renderInspector(){
   renderConflict(cur);
 }
 
+/* ---------- 快捷键显示与校验 ---------- */
+const MOD_ORDER = ["cmd","ctrl","alt","shift","win"];
+const MOD_LABEL = {cmd:"⌘",ctrl:"⌃",alt:"⌥",shift:"⇧",win:"Win"};
+const KEY_LABEL = {space:"空格",enter:"回车",tab:"Tab",esc:"Esc",backspace:"⌫",delete:"⌦",
+  up:"↑",down:"↓",left:"←",right:"→",pageup:"PgUp",pagedown:"PgDn",home:"Home",end:"End",insert:"Ins",plus:"+"};
+const MOD_ALIAS = {cmd:"cmd",command:"cmd","⌘":"cmd",ctrl:"ctrl",control:"ctrl","⌃":"ctrl",
+  alt:"alt",option:"alt","⌥":"alt",shift:"shift","⇧":"shift",win:"win",windows:"win",super:"win"};
+const KEY_ALIAS = {esc:"esc",escape:"esc"," ":"space",spacebar:"space",space:"space",
+  arrowup:"up",arrowdown:"down",arrowleft:"left",arrowright:"right",up:"up",down:"down",left:"left",right:"right",
+  del:"delete",pgup:"pageup",pgdn:"pagedown",ins:"insert"};
+const HK_SUGGEST = [
+  ["cmd+c","复制"],["cmd+v","粘贴"],["cmd+z","撤销"],["cmd+s","保存"],["cmd+f","查找"],["cmd+shift+p","命令面板"]
+];
+
+function keyToken(e){
+  const raw = e.key;
+  if(raw === " ") return "space";
+  if(/^F\d{1,2}$/i.test(raw)) return raw.toLowerCase();
+  if(raw.length === 1) return raw.toLowerCase();
+  return raw.toLowerCase();
+}
+function normToken(t){
+  const low = String(t||"").toLowerCase();
+  if(MOD_ALIAS[low]) return MOD_ALIAS[low];
+  if(KEY_ALIAS[low]) return KEY_ALIAS[low];
+  return low.replace(/^arrow/,"");
+}
+function normHotkey(raw){
+  const parts = String(raw||"").toLowerCase()
+    .replace(/⌘/g,"cmd+").replace(/⌃/g,"ctrl+").replace(/⌥/g,"alt+").replace(/⇧/g,"shift+")
+    .split(/[+\s]+/).filter(Boolean).map(normToken);
+  if(!parts.length) return "";
+  const mods = [], keys = [];
+  parts.forEach(function(t){
+    if(MOD_ORDER.indexOf(t) >= 0){ if(mods.indexOf(t) < 0) mods.push(t); }
+    else keys.push(t);
+  });
+  mods.sort(function(a,b){ return MOD_ORDER.indexOf(a) - MOD_ORDER.indexOf(b); });
+  return mods.concat(keys.slice(-1)).join("+");
+}
+function hotkeyTokens(value){
+  const v = normHotkey(value);
+  return v ? v.split("+") : [];
+}
+function hotkeyText(value){
+  return hotkeyTokens(value).map(function(t){ return MOD_LABEL[t] || KEY_LABEL[t] || t.toUpperCase(); }).join(" ");
+}
+function hotkeyProblem(value){
+  const v = normHotkey(value);
+  if(!v) return null;
+  if(RESERVED.indexOf(v) >= 0) return "“" + hotkeyText(v) + "”被系统占用（截图/切换应用等），换一个组合。";
+  const toks = v.split("+");
+  if(toks.length === 2 && toks[0] !== "shift"){ /* 允许单修饰键组合 */ }
+  if(toks.length === 1) return "只绑一个键会抢走正常输入，建议加一个 ⌘ 或 ⌃。";
+  const key = toks[toks.length-1];
+  if(MOD_ORDER.indexOf(key) >= 0) return "缺少主键，请再按一个字母或功能键。";
+  return null;
+}
+function paintPreview(items, hint){
+  const box = $("#hkPreview");
+  if(!items.length){
+    box.innerHTML = '<span class="hk-empty">' + esc(hint || "还没设置快捷键") + '</span>';
+    return;
+  }
+  box.innerHTML = items.map(function(it, i){
+    const cls = it.mod ? " mod" : (it.label === "?" ? " ghost" : "");
+    const cap = '<span class="hk-keycap' + cls + '">' + esc(it.label) + '</span>';
+    if(i === items.length-1) return cap;
+    return cap + '<span class="hk-plus">+</span>';
+  }).join("");
+}
+function renderHotkeyEditor(value){
+  const v = normHotkey(value);
+  $("#hotkeyInput").value = v;
+  const toks = v ? v.split("+") : [];
+  paintPreview(toks.map(function(t){ return {label: MOD_LABEL[t] || KEY_LABEL[t] || t.toUpperCase(), mod: !!MOD_LABEL[t]}; }));
+  const prob = hotkeyProblem(v);
+  $("#hkErr").style.display = prob ? "flex" : "none";
+  $("#hkErr").textContent = prob ? prob : "";
+}
+function renderHkChips(){
+  $("#hkChips").innerHTML = HK_SUGGEST.map(function(c){
+    return '<button class="chip" data-hk="' + c[0] + '">' + esc(c[1]) + ' <b style="font-weight:500;color:#98A2AC">' + esc(hotkeyText(c[0])) + '</b></button>';
+  }).join("");
+  $$("#hkChips button").forEach(function(b){
+    b.addEventListener("click", function(){
+      renderHotkeyEditor(b.dataset.hk);
+      $("#hkStatus").textContent = "点「保存绑定」生效";
+    });
+  });
+}
+
 function syncActionFields(type, value){
   const isHot = type==="hotkey";
   const isPlugin = type==="plugin";
   $("#hotkeyField").style.display = isHot?"block":"none";
   $("#pluginField").style.display = isPlugin?"block":"none";
   $("#paramField").style.display = (isHot||isPlugin)?"none":"block";
-  $("#hotkeyInput").value = isHot?(value||""):"";
+  if(isHot) renderHotkeyEditor(value||"");
   if(isPlugin){
     const sel = $("#pluginAction");
     const opts = [];
@@ -596,7 +727,7 @@ function renderBindings(){
   else{
     tb.innerHTML = rows.map(function(r){
       return '<tr><td>'+INPUTS[r.inp]+'</td><td>'+r.gLabel+'</td><td>'+esc(actionSummary(r.b).split(" · ")[0])+'</td>'+
-        '<td style="color:#5B6670">'+esc(r.b.value||"—")+'</td>'+
+        '<td style="color:#5B6670">'+esc(r.b.type==="hotkey"?(hotkeyText(r.b.value)||"—"):(r.b.value||"—"))+'</td>'+
         '<td><button class="btn sm" data-edit="'+r.k+'">编辑</button></td></tr>';
     }).join("");
     $$("#bindTable button[data-edit]").forEach(function(b){
@@ -778,20 +909,24 @@ $("#actionType").addEventListener("change",function(){
   syncActionFields(this.value,"");
 });
 $("#btnSave").addEventListener("click",function(){
+  resetRecIfNeeded();
   const type = $("#actionType").value;
   let value = "";
-  if(type==="hotkey") value = $("#hotkeyInput").value.trim();
+  if(type==="hotkey") value = normHotkey($("#hotkeyInput").value);
   else if(type==="plugin") value = $("#pluginAction").value;
   else value = $("#paramInput").value.trim();
-  if(type!=="media" && !value){ toast("这个动作需要填写参数"); return; }
+  if(type!=="media" && !value){
+    if(type==="hotkey"){ $("#hkErr").style.display="flex"; $("#hkErr").textContent="先录制或手动输入一个组合键。"; }
+    toast("这个动作需要填写参数"); return;
+  }
   if(type==="hotkey"){
-    const k = value.toLowerCase().replace(/ /g,"");
-    if(!k){ toast("请先录制快捷键"); return; }
-    if(RESERVED.indexOf(k)>=0){ toast("“"+value+"”是系统保留组合"); return; }
+    const prob = hotkeyProblem(value);
+    if(prob){ $("#hkErr").style.display="flex"; $("#hkErr").textContent=prob; toast("这个组合不能用"); return; }
   }
   S.history.push(JSON.stringify(S.bindings));
   if(S.history.length>20) S.history.shift();
   S.bindings[currentKey()] = {type:type,value:value};
+  if(type==="hotkey"){ $("#hkStatus").textContent = "已保存"; }
   save(); renderAll(); toast("已保存：" + INPUTS[S.selected.input] + " · " + gestureLabel(S.selected.input,S.selected.gesture));
 });
 $("#btnClear").addEventListener("click",function(){
@@ -805,29 +940,77 @@ $("#btnRollback").addEventListener("click",function(){
   S.bindings = JSON.parse(last); save(); renderAll(); toast("已回滚到上一版");
 });
 
-/* 录制快捷键 */
-let recording = false;
-$("#btnRecord").addEventListener("click",function(){
-  recording = !recording;
-  $("#btnRecord").textContent = recording?"停止":"录制";
-  $("#hotkeyInput").placeholder = recording?"请按组合键…":"点“录制”后按键";
+/* ---------- 快捷键录制 ---------- */
+let hkRecording = false, hkMods = [];
+
+function paintPending(){
+  const items = hkMods.map(function(m){ return {label:MOD_LABEL[m], mod:true}; });
+  if(items.length) items.push({label:"?"});
+  paintPreview(items, "等待按键…");
+  $("#hkStatus").textContent = hkMods.length ? "继续按一个主键，或按 Esc 取消" : "按下组合键，或按 Esc 取消";
+}
+function startHkRecord(){
+  hkRecording = true; hkMods = [];
+  $("#hkBox").classList.add("rec");
+  $("#btnRecord").innerHTML = '<span class="rec-dot"></span>录制中…';
+  $("#hkStatus").textContent = "按下组合键";
+  $("#hkErr").style.display = "none";
+  paintPending();
+}
+function stopHkRecord(reason){
+  hkRecording = false; hkMods = [];
+  $("#hkBox").classList.remove("rec");
+  $("#btnRecord").textContent = "重新录制";
+  if(reason) $("#hkStatus").textContent = reason;
+  renderHotkeyEditor($("#hotkeyInput").value);
+}
+function resetRecIfNeeded(){
+  if(!hkRecording) return;
+  hkRecording = false; hkMods = [];
+  $("#hkBox").classList.remove("rec");
+  $("#btnRecord").textContent = "开始录制";
+  $("#hkStatus").textContent = "";
+}
+$("#btnRecord").addEventListener("click", function(){
+  if(hkRecording) stopHkRecord("已取消"); else startHkRecord();
 });
-window.addEventListener("keydown",function(e){
-  if(!recording) return;
-  if(["Shift","Control","Alt","Meta"].indexOf(e.key)>=0) return;
-  e.preventDefault();
-  const parts = [];
-  if(e.metaKey) parts.push("cmd");
-  if(e.ctrlKey) parts.push("ctrl");
-  if(e.altKey) parts.push("alt");
-  if(e.shiftKey) parts.push("shift");
-  parts.push(e.key.toLowerCase());
-  $("#hotkeyInput").value = parts.join("+");
-  recording = false; $("#btnRecord").textContent = "录制";
+$("#btnClearHotkey").addEventListener("click", function(){
+  $("#hotkeyInput").value = "";
+  renderHotkeyEditor("");
+  $("#hkStatus").textContent = "已清空";
 });
+$("#hotkeyInput").addEventListener("blur", function(){
+  renderHotkeyEditor(this.value);
+  if(this.value.trim()) $("#hkStatus").textContent = "点「保存绑定」生效";
+});
+window.addEventListener("keydown", function(e){
+  if(!hkRecording) return;
+  e.preventDefault(); e.stopPropagation();
+  if(e.key === "Escape"){ stopHkRecord("已取消录制"); return; }
+  const mods = [];
+  if(e.metaKey) mods.push("cmd");
+  if(e.ctrlKey) mods.push("ctrl");
+  if(e.altKey) mods.push("alt");
+  if(e.shiftKey) mods.push("shift");
+  if(["Meta","Control","Alt","Shift"].indexOf(e.key) >= 0){
+    hkMods = mods;
+    paintPending();
+    return;
+  }
+  if(e.key === "Backspace" && !mods.length){
+    $("#hotkeyInput").value = "";
+    stopHkRecord("已清空");
+    return;
+  }
+  const combo = normHotkey(mods.concat([keyToken(e)]).join("+"));
+  $("#hotkeyInput").value = combo;
+  stopHkRecord("已记录，点「保存绑定」生效");
+  if(hotkeyProblem(combo)) $("#hkStatus").textContent = "这个组合被占用，换一个";
+}, true);
 
 /* ---------- 设备选择 ---------- */
 function selectInput(input){
+  resetRecIfNeeded();
   S.selected.input = input;
   const gs = gesturesFor(input);
   if(!gs.some(g=>g[0]===S.selected.gesture)) S.selected.gesture = gs[0][0];
@@ -1005,6 +1188,7 @@ function renderGuideTags(){
 
 load();
 renderAll();
+renderHkChips();
 renderGuideTags();
 document.getElementById("btnResetDefault").addEventListener("click",function(){
   S.history.push(JSON.stringify(S.bindings));
