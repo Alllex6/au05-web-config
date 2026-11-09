@@ -1,0 +1,11 @@
+{
+  "id": "community-whisper-ptt",
+  "name": "按住说话（社区示例）",
+  "version": "0.2.0",
+  "author": "community",
+  "permissions": ["input", "network"],
+  "platforms": ["macos"],
+  "actions": [
+    { "id": "whisper.hold", "name": "按住说话，松手出字" }
+  ]
+}

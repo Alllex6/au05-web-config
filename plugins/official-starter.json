@@ -1,0 +1,15 @@
+{
+  "id": "official-starter",
+  "name": "官方入门动作包",
+  "version": "1.0.0",
+  "author": "Ulanzi 官方",
+  "homepage": "https://github.com/UlanziTechnology/UlanziDeckPlugin-SDK",
+  "permissions": ["input"],
+  "platforms": ["macos", "windows"],
+  "actions": [
+    { "id": "media.play", "name": "播放 / 暂停" },
+    { "id": "media.next", "name": "下一首" },
+    { "id": "window.cycle", "name": "切换窗口" },
+    { "id": "text.paste", "name": "粘贴常用片段" }
+  ]
+}

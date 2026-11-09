@@ -1,0 +1,14 @@
+{
+  "schema": "au05.preset/1",
+  "id": "coding",
+  "name": "编程 / AI 对话",
+  "desc": "两键呼出 Claude Code 与听写，旋钮调音量。",
+  "bindings": {
+    "key1.click": { "type": "ai", "value": "claude-code: 解释当前文件" },
+    "key2.click": { "type": "ai", "value": "whisper: 按住说话，松手出字" },
+    "key3.click": { "type": "hotkey", "value": "cmd+shift+p" },
+    "knob.cw": { "type": "media", "value": "volup" },
+    "knob.ccw": { "type": "media", "value": "voldown" },
+    "knob.press": { "type": "media", "value": "mute" }
+  }
+}

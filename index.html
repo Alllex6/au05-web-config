@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AU05 配置台 · Web Config</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230F766E'/%3E%3Ctext x='16' y='21' font-size='13' fill='white' text-anchor='middle' font-family='sans-serif'%3EAU%3C/text%3E%3C/svg%3E"/>
+<style>
+:root{
+  --bg:#F4F6F8; --card:#FFFFFF; --ink:#161A1D; --sub:#5B6670; --line:#E3E7EB;
+  --accent:#0F766E; --accent-soft:#E6F2F0; --warn:#B45309; --danger:#B42318; --ok:#15803D;
+  --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:16px;height:60px;padding:0 20px;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.2px;white-space:nowrap}
+.brand-line{display:flex;flex-direction:column;line-height:1.25}
+.brand-line b{font-size:13px;font-weight:650}
+.logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#0F766E,#115E59);display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:none}
+.brand small{color:var(--sub);font-weight:500;font-size:11px}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12.5px;color:var(--sub);white-space:nowrap;flex:none}
+.dot{width:7px;height:7px;border-radius:50%;background:#9AA4AE}
+.dot.on{background:var(--ok)} .dot.warn{background:var(--warn)}
+select.mode{height:32px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:0 8px;font-size:12.5px;color:var(--ink)}
+.btn{height:34px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;transition:.15s;white-space:nowrap;flex:none}
+.btn:hover{background:#F7F9FA}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#0D655D}
+.btn.ghost{background:transparent}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.shell{display:grid;grid-template-columns:184px 1fr;min-height:calc(100vh - 60px)}
+.rail{border-right:1px solid var(--line);padding:16px 12px;background:#FBFCFD}
+.rail button{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--sub);cursor:pointer;text-align:left;font-size:13px}
+.rail button:hover{background:#F1F4F6;color:var(--ink)}
+.rail button.active{background:var(--accent-soft);color:#0B5E58;font-weight:600}
+.rail .dotmark{width:6px;height:6px;border-radius:2px;background:currentColor;opacity:.5}
+.rail .tip{margin:16px 8px;font-size:11.5px;color:#8A949E;line-height:1.6}
+main{padding:26px 28px 60px;max-width:1180px}
+.page{display:none} .page.active{display:block}
+h1{font-size:21px;margin:0 0 6px;letter-spacing:-.2px}
+.lead{color:var(--sub);margin:0 0 20px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.pad{padding:18px}
+.grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:11.5px;background:#F1F4F6;color:var(--sub)}
+.tag.ok{background:#E8F5EC;color:var(--ok)} .tag.warn{background:#FDF3E7;color:var(--warn)} .tag.bad{background:#FDECEA;color:var(--danger)}
+.tag.line{background:transparent;border:1px solid var(--line)}
+.kicker{font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:#8A949E}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt24{margin-top:24px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.device-wrap{display:grid;grid-template-columns:1fr;gap:14px}
+.device{position:relative;background:#12181C;border-radius:18px;padding:22px;display:flex;gap:26px;align-items:center;justify-content:center;overflow:hidden;max-width:520px;margin:0 auto}
+.device:before{content:"";position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 15% 0%, rgba(15,118,110,.28), transparent 60%),
+  radial-gradient(90% 80% at 100% 100%, rgba(180,83,9,.16), transparent 60%);pointer-events:none}
+.keys{display:flex;flex-direction:column;gap:12px;position:relative;z-index:1}
+.key{width:98px;height:98px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#2A3238,#222A2F);color:#E8EDF1;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;padding:10px;transition:.15s;box-shadow:0 2px 0 rgba(0,0,0,.35);overflow:hidden}
+.key:hover{border-color:rgba(15,118,110,.75);transform:translateY(-1px)}
+.key.sel{border-color:#2DD4BF;box-shadow:0 0 0 2px rgba(45,212,191,.28)}
+.key .idx{font-size:10px;color:#8FA0AC;letter-spacing:.8px;flex:none}
+.key .act{font-size:10.5px;line-height:1.35;color:#C9D6DE;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-align:left}
+.key .act.set{color:#7FE3D8}
+.knob-zone{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px}
+.knob{width:112px;height:112px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:
+  conic-gradient(from 210deg,#39434A,#4A555D,#39434A);cursor:pointer;position:relative;display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.35),inset 0 0 0 10px rgba(255,255,255,.04)}
+.knob:hover{border-color:rgba(15,118,110,.75)}
+.knob.sel{box-shadow:0 0 0 2px rgba(45,212,191,.35),0 4px 0 rgba(0,0,0,.35)}
+.knob .ring{position:absolute;inset:9px;border-radius:50%;border:1px dashed rgba(255,255,255,.18)}
+.knob .core{font-size:11px;color:#DDE6EB;text-align:center;line-height:1.3;max-width:74px}
+.knob .core b{display:block;font-size:10px;color:#8FA0AC;font-weight:500;letter-spacing:1px;margin-bottom:3px}
+.knob .core span#lab-knob{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.knob-hint{font-size:11px;color:#8FA0AC}
+.legend{display:flex;gap:12px;justify-content:center;font-size:11.5px;color:var(--sub)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;background:#D8DEE3}
+.sw.sel{background:#2DD4BF} .sw.unset{background:#C2CAD1}
+.seg{display:inline-flex;padding:3px;background:#F1F4F6;border-radius:9px;gap:2px}
+.seg button{height:28px;padding:0 11px;border:0;background:transparent;border-radius:7px;font-size:12.5px;color:var(--sub);cursor:pointer}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.08);font-weight:600}
+.field{margin-top:14px}
+label.lbl{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}
+input[type=text],select,textarea{width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13px}
+textarea{height:84px;padding:8px 10px;resize:vertical;line-height:1.5}
+.hint{font-size:11.5px;color:#8A949E;margin-top:6px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:middle}
+th{color:var(--sub);font-weight:600;background:#FBFCFD;font-size:11.5px;letter-spacing:.3px}
+tr:last-child td{border-bottom:0}
+.empty{padding:26px;text-align:center;color:#8A949E;font-size:12.5px}
+.preset{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;transition:.15s}
+.preset:hover{border-color:#BFD9D5;transform:translateY(-1px)}
+.preset.on{border-color:var(--accent);background:#FAFEFD;box-shadow:0 0 0 2px rgba(15,118,110,.1)}
+.preset .btn{align-self:flex-start}
+.preset h4{margin:0;font-size:14px}
+.preset p{margin:0;color:var(--sub);font-size:12px;line-height:1.5}
+.plugin{display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.plugin .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.plugin h4{margin:0;font-size:14px;display:flex;align-items:center;gap:6px}
+.plugin p{margin:0;color:var(--sub);font-size:12px;line-height:1.55;min-height:38px}
+.meta{display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;color:#8A949E}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#161A1D;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:50}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+dialog{border:0;border-radius:16px;padding:0;max-width:520px;width:92%;box-shadow:0 20px 60px rgba(16,24,40,.25)}
+dialog::backdrop{background:rgba(16,24,40,.4)}
+.dl-head{padding:18px 20px 10px;border-bottom:1px solid var(--line)}
+.dl-head h3{margin:0;font-size:16px}
+.dl-body{padding:16px 20px;max-height:52vh;overflow:auto}
+.dl-foot{padding:12px 20px 18px;display:flex;justify-content:flex-end;gap:10px}
+.perm{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.perm:last-child{border:0}
+.perm .k{width:22px;height:22px;border-radius:6px;background:#F1F4F6;display:grid;place-items:center;font-size:11px;color:var(--sub);flex:none}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#F7F9FA;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;color:#3B444C}
+.steps{counter-reset:s}
+.step{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border:0}
+.step .n{width:26px;height:26px;border-radius:50%;background:#F1F4F6;display:grid;place-items:center;font-size:12px;color:var(--sub);flex:none}
+.step .n.done{background:#E8F5EC;color:var(--ok)}
+.step h4{margin:0 0 4px;font-size:13.5px}
+.step p{margin:0;color:var(--sub);font-size:12.5px}
+.kbd{display:inline-flex;align-items:center;height:22px;padding:0 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;font-size:11.5px;background:#fff;color:#3B444C;font-family:ui-monospace,Menlo,monospace}
+.notice{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:#FDF7EC;border:1px solid #F6E2BE;color:#7A4E12;font-size:12.5px}
+.help{color:#0F766E;background:#E9F5F2;border-color:#C9E6E1;color:#0B5E58}
+@media (max-width:960px){
+  .shell{grid-template-columns:1fr}
+  .rail{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}
+  .rail button{width:auto;white-space:nowrap}
+  .rail .tip{display:none}
+  main{padding:18px 16px 60px}
+  .grid2,.grid3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="logo">AU</div><div class="brand-line"><b>AU05 配置台</b><small>Web Config · 本地优先</small></div></div>
+  <div class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">未连接设备</span></div>
+  <select class="mode" id="modeSelect" title="连接模式">
+    <option value="auto">自动检测（优先 2.4G）</option>
+    <option value="bt">仅蓝牙</option>
+    <option value="dongle">仅 2.4G 接收器</option>
+  </select>
+  <div class="spacer"></div>
+  <div class="pill" id="batteryPill" title="电量">电量 —</div>
+  <button class="btn" id="btnHid">连接设备</button>
+  <button class="btn primary" id="btnPush">写入设备</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" id="rail">
+    <button data-page="guide" class="active"><span class="dotmark"></span>上手引导</button>
+    <button data-page="keys"><span class="dotmark"></span>键位配置</button>
+    <button data-page="presets"><span class="dotmark"></span>场景预设</button>
+    <button data-page="market"><span class="dotmark"></span>应用市场</button>
+    <button data-page="import"><span class="dotmark"></span>插件导入</button>
+    <button data-page="help"><span class="dotmark"></span>协议与帮助</button>
+    <div class="tip">配置保存在本机浏览器。未安装本地 Agent 时，仍可完成改键、导出配置与浏览市场。</div>
+  </nav>
+
+  <main>
+    <!-- 引导 -->
+    <section class="page active" data-page="guide">
+      <h1>三步开工</h1>
+      <p class="lead">先确认连接通道，再给三个键和一个旋钮配动作，最后验证一次真实触发。</p>
+      <div class="grid2">
+        <div class="card pad">
+          <div class="steps" id="guideSteps">
+            <div class="step"><div class="n" data-stepn="1">1</div><div><h4>连接并确认通道</h4><p>插入 2.4G 接收器或让设备进入蓝牙配对。自动检测会优先使用接收器；也可在上方选择“仅蓝牙 / 仅 2.4G”。</p></div></div>
+            <div class="step"><div class="n" data-stepn="2">2</div><div><h4>配三键一旋钮</h4><p>点设备图上的键位，选择手势与动作。内置一套官方推荐映射，进来就能用。</p></div></div>
+            <div class="step"><div class="n" data-stepn="3">3</div><div><h4>验证触发</h4><p>用“监听模式”按一次设备按键，页面会显示收到的 HID 报文，确认设备与配置都对上了。</p></div></div>
+          </div>
+        </div>
+        <div class="card pad">
+          <div class="kicker">当前状态</div>
+          <div class="mt12 row"><span class="tag" id="gConnTag">设备：未连接</span><span class="tag" id="gBindTag">键位：0 / 10</span><span class="tag" id="gVerTag">验证：未进行</span></div>
+          <div class="mt16 notice"><div><b>关于“能真实用”</b><br/>浏览器只能读 HID 报文、不能后台常驻监听。要真正让快捷键在任何应用里生效，需要本地 Agent；网页负责配置与市场。</div></div>
+          <div class="mt16 row"><button class="btn primary" id="btnGoKeys">去配键位</button><button class="btn" id="btnAgentCheck">检查本地 Agent</button></div>
+          <div class="hint" id="agentHint">本地 Agent 未检测到。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 键位 -->
+    <section class="page" data-page="keys">
+      <h1>键位配置</h1>
+      <p class="lead">三个按键 × 单击 / 双击 / 长按，一个旋钮 × 左旋 / 右旋 / 按压 / 按压+旋转。点选热区后右侧编辑。</p>
+      <div class="grid2">
+        <div class="device-wrap">
+          <div class="card" style="overflow:hidden">
+            <div class="device" id="deviceMock">
+              <div class="keys">
+                <button class="key" data-input="key1"><span class="idx">KEY 01</span><span class="act" id="lab-key1">未设置</span></button>
+                <button class="key" data-input="key2"><span class="idx">KEY 02</span><span class="act" id="lab-key2">未设置</span></button>
+                <button class="key" data-input="key3"><span class="idx">KEY 03</span><span class="act" id="lab-key3">未设置</span></button>
+              </div>
+              <div class="knob-zone">
+                <button class="knob" data-input="knob">
+                  <span class="ring"></span>
+                  <span class="core"><b>KNOB</b><span id="lab-knob">未设置</span></span>
+                </button>
+                <div class="knob-hint" id="knobHint">左旋 · 右旋 · 按压</div>
+              </div>
+            </div>
+            <div class="pad" style="border-top:1px solid var(--line)">
+              <div class="legend"><span><i class="sw sel"></i>当前选中</span><span><i class="sw"></i>已设置</span><span><i class="sw unset"></i>未设置</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="pad row" style="padding-bottom:6px;justify-content:space-between"><div class="kicker">已生效绑定</div><button class="btn sm" id="btnResetDefault">恢复官方推荐</button></div>
+            <table id="bindTable"><thead><tr><th>输入</th><th>手势</th><th>动作</th><th>参数</th><th style="width:64px"></th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <div class="card pad">
+          <div class="kicker">编辑</div>
+          <div class="row mt8" style="justify-content:space-between">
+            <div style="font-size:15px;font-weight:650" id="selTitle">KEY 01 · 单击</div>
+            <span class="tag" id="selState">未设置</span>
+          </div>
+          <div class="field"><label class="lbl">手势</label><div class="seg" id="gestureSeg"></div></div>
+          <div class="field"><label class="lbl">动作类型</label>
+            <select id="actionType"></select>
+          </div>
+          <div class="field" id="paramField"><label class="lbl" id="paramLabel">参数</label><input type="text" id="paramInput" placeholder=""/></div>
+          <div class="field" id="hotkeyField" style="display:none">
+            <label class="lbl">快捷键</label>
+            <div class="row"><input type="text" id="hotkeyInput" placeholder="点“录制”后按键" readonly/><button class="btn sm" id="btnRecord">录制</button></div>
+            <div class="hint">录制时聚焦本页，按下组合键即可；系统保留组合会被拒绝。</div>
+          </div>
+          <div class="field" id="pluginField" style="display:none"><label class="lbl">插件动作</label><select id="pluginAction"></select></div>
+          <div class="row mt16"><button class="btn primary" id="btnSave">保存绑定</button><button class="btn" id="btnClear">清除</button><button class="btn ghost" id="btnRollback">回滚上次</button></div>
+          <div class="notice mt16" id="conflictBox" style="display:none"><div id="conflictText"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 预设 -->
+    <section class="page" data-page="presets">
+      <h1>场景预设</h1>
+      <p class="lead">一套键位就是一个场景。切换后立即生效，可导入他人预设，也可把当前配置存成自己的场景。</p>
+      <div class="grid3" id="presetGrid"></div>
+      <div class="card pad mt16">
+        <div class="kicker">当前配置</div>
+        <div class="row mt12"><button class="btn primary" id="btnSavePreset">存为新场景</button><button class="btn" id="btnExport">导出配置</button><button class="btn" id="btnImportConfig">导入配置</button><input type="file" id="fileConfig" accept=".json" style="display:none"/></div>
+        <div class="hint">导出为 au05-config.json，可交给本地 Agent 或直接分享给同事。</div>
+      </div>
+    </section>
+
+    <!-- 市场 -->
+    <section class="page" data-page="market">
+      <h1>应用市场</h1>
+      <p class="lead">动作包、驱动与客户端。官方内容带“官方”标识；社区内容需确认权限后安装。</p>
+      <div class="row" style="justify-content:space-between">
+        <div class="row" id="marketFilters">
+          <button class="btn sm primary" data-filter="all">全部</button>
+          <button class="btn sm" data-filter="official">官方</button>
+          <button class="btn sm" data-filter="community">社区</button>
+          <button class="btn sm" data-filter="installed">已安装</button>
+        </div>
+        <div class="hint">目录数据来源：GitHub 仓库元数据（安装量为示例值）</div>
+      </div>
+      <div class="grid3 mt16" id="marketGrid"></div>
+    </section>
+
+    <!-- 导入 -->
+    <section class="page" data-page="import">
+      <h1>插件导入</h1>
+      <p class="lead">支持三种来源：插件包 JSON、分享链接、粘贴清单。导入前会展示权限，确认后才落地。</p>
+      <div class="grid2">
+        <div class="card pad">
+          <div class="field" style="margin-top:0"><label class="lbl">插件清单（JSON）</label><textarea id="importText" placeholder='{"id":"my-action-pack","name":"我的动作包","version":"1.0.0","author":"alex","permissions":["input","clipboard"],"actions":[{"id":"ai.prompt","name":"发 Prompt"}]}'></textarea></div>
+          <div class="row mt12"><button class="btn primary" id="btnImportText">校验并导入</button><button class="btn" id="btnImportFile">从文件导入</button><input type="file" id="filePlugin" accept=".json" style="display:none"/></div>
+          <div class="field"><label class="lbl">或从链接导入</label><div class="row"><input type="text" id="importUrl" placeholder="https://example.com/plugin.json"/><button class="btn" id="btnImportUrl">拉取</button></div><div class="hint">跨域受限时，请使用文件或粘贴方式。</div></div>
+        </div>
+        <div class="card pad">
+          <div class="kicker">导入规则</div>
+          <ul style="margin:12px 0 0 18px;padding:0;color:var(--sub);font-size:12.5px;line-height:1.9">
+            <li>必须有 id、name、version、permissions 四个字段。</li>
+            <li>权限只能取 input / clipboard / network / filesystem，超出即拒绝。</li>
+            <li>同名不同版本会提示覆盖，不会静默替换。</li>
+            <li>未签名的包只能本地试用，不能发布到市场。</li>
+          </ul>
+          <div class="code mt12" id="importLog">等待导入…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 帮助 -->
+    <section class="page" data-page="help">
+      <h1>协议与帮助</h1>
+      <p class="lead">这一页写清楚浏览器能做到什么、做不到什么，避免“配完不生效”的误会。</h1>
+      <div class="grid2">
+        <div class="card pad">
+          <div class="kicker">能力边界</div>
+          <table class="mt8"><thead><tr><th>能力</th><th>纯网页</th><th>本地 Agent</th></tr></thead><tbody>
+            <tr><td>读取 HID 报文、识别按键</td><td><span class="tag ok">可以</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>写入配置到设备</td><td><span class="tag warn">实验</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>任意应用内触发快捷键</td><td><span class="tag bad">不行</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>后台常驻、开机自启</td><td><span class="tag bad">不行</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>浏览器覆盖</td><td colspan="2">Chrome / Edge 支持 WebHID；Safari、Firefox、移动端不支持</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card pad">
+          <div class="kicker">本地 Agent 接入</div>
+          <p class="hint mt8">默认地址 <span class="kbd">http://127.0.0.1:17890</span>，仅监听回环地址。</p>
+          <button class="btn mt12" id="btnAgentCheck2">检测 Agent</button>
+          <div class="code mt12" id="agentLog">未检测</div>
+          <div class="kicker mt16">HID 报文示例</div>
+          <div class="code mt8" id="reportLog">连接设备后，按一次键会显示在这里</div>
+        </div>
+      </div>
+      <div class="card pad mt16">
+        <div class="kicker">已知限制</div>
+        <ul style="margin:10px 0 0 18px;padding:0;color:var(--sub);font-size:12.5px;line-height:1.9">
+          <li>设备通道识别依赖厂商 HID 描述符；不同固件版本的报文长度可能不同。</li>
+          <li>“写入设备”在纯网页模式下按实验通道发送，失败不会改动设备原配置。</li>
+          <li>旋钮加速旋转会做 30ms 节流，避免事件堆积。</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="permDialog">
+  <div class="dl-head"><h3 id="permTitle">安装确认</h3><div class="hint" id="permSub">请确认该插件申请的权限</div></div>
+  <div class="dl-body" id="permBody"></div>
+  <div class="dl-foot"><button class="btn" id="permCancel">取消</button><button class="btn primary" id="permOk">同意并安装</button></div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+
+const KEY_GESTURES = [
+  ["click","单击"],["double","双击"],["long","长按"]
+];
+const KNOB_GESTURES = [
+  ["ccw","左旋"],["cw","右旋"],["press","按压"],["pressTurn","按压+旋转"]
+];
+const INPUTS = {key1:"KEY 01",key2:"KEY 02",key3:"KEY 03",knob:"旋钮"};
+const ACTIONS = [
+  {id:"media",name:"媒体控制",field:"play / next / prev / mute / volup / voldown",ph:"play"},
+  {id:"hotkey",name:"键盘快捷键",field:null,ph:""},
+  {id:"text",name:"文本片段",field:"要插入的文本",ph:"例如：已在会议中，稍后回复"},
+  {id:"url",name:"打开网址",field:"URL",ph:"https://ulanzistudio.com"},
+  {id:"app",name:"打开应用",field:"应用名或路径",ph:"Visual Studio Code"},
+  {id:"preset",name:"切换场景",field:"目标场景 ID",ph:"coding"},
+  {id:"ai",name:"AI 指令",field:"提示词 / 目标工具",ph:"claude-code: 解释选中代码"},
+  {id:"plugin",name:"插件动作",field:null,ph:""}
+];
+const RESERVED = ["cmd+tab","ctrl+alt+del","alt+f4","cmd+q","win+l","cmd+space","ctrl+shift+esc"];
+const PERM_LABEL = {input:"监听按键输入",clipboard:"读写剪贴板",network:"访问网络",filesystem:"读写本地文件"};
+const PERM_ALLOWED = ["input","clipboard","network","filesystem"];
+
+const DEFAULT_BINDINGS = {
+  "key1.click":  {type:"media",  value:"play"},
+  "key2.click":  {type:"ai",     value:"whisper: 按住说话，松手出字"},
+  "key3.click":  {type:"preset", value:"coding"},
+  "knob.cw":     {type:"media",  value:"volup"},
+  "knob.ccw":    {type:"media",  value:"voldown"},
+  "knob.press":  {type:"media",  value:"mute"}
+};
+
+const PRESET_BUILTIN = [
+  {id:"coding",name:"编程 / AI 对话",desc:"两键呼出 Claude Code 与听写，旋钮调音量。",bindings:{
+    "key1.click":{type:"ai",value:"claude-code: 解释当前文件"},"key2.click":{type:"ai",value:"whisper: 按住说话，松手出字"},
+    "key3.click":{type:"hotkey",value:"cmd+shift+p"},"knob.cw":{type:"media",value:"volup"},
+    "knob.ccw":{type:"media",value:"voldown"},"knob.press":{type:"media",value:"mute"}}},
+  {id:"editing",name:"剪辑",desc:"时间线跳转、播放暂停、音量，全在手指上。",bindings:{
+    "key1.click":{type:"hotkey",value:"cmd+z"},"key2.click":{type:"media",value:"play"},
+    "key3.click":{type:"hotkey",value:"space"},"knob.cw":{type:"hotkey",value:"cmd+right"},
+    "knob.ccw":{type:"hotkey",value:"cmd+left"},"knob.press":{type:"media",value:"mute"}}},
+  {id:"meeting",name:"会议",desc:"静音、开麦、切窗口，开会不手忙脚乱。",bindings:{
+    "key1.click":{type:"media",value:"mute"},"key2.click":{type:"hotkey",value:"cmd+shift+m"},
+    "key3.click":{type:"url",value:"https://meeting.tencent.com"},"knob.cw":{type:"media",value:"volup"},
+    "knob.ccw":{type:"media",value:"voldown"},"knob.press":{type:"media",value:"mute"}}}
+];
+
+const MARKET = [
+  {id:"official-starter",name:"官方入门动作包",author:"Ulanzi 官方",version:"1.0.0",official:true,stars:0,installs:5120,
+   desc:"媒体控制、常用快捷键、窗口切换，覆盖新人 90% 的第一次配置。",perms:["input"],actions:12,
+   repo:"https://github.com/UlanziTechnology/UlanziDeckPlugin-SDK",cat:"动作包"},
+  {id:"openvibekey",name:"OpenVibeKey 客户端",author:"palaemonboy",version:"1.2.0",official:false,stars:12,installs:1840,
+   desc:"macOS 定制客户端：快捷键、灯效、麦克风、音频输入与预设。",perms:["input","network"],actions:0,
+   repo:"https://github.com/palaemonboy/OpenVibeKey",cat:"客户端"},
+  {id:"olanzi",name:"Olanzi 驱动",author:"MrCroxx",version:"0.9.4",official:false,stars:16,installs:1420,
+   desc:"第三方驱动，绕开 Studio 直接接管设备；适合做二次开发。",perms:["input"],actions:0,
+   repo:"https://github.com/MrCroxx/olanzi",cat:"驱动"},
+  {id:"clanzi",name:"Clanzi 改键器",author:"JXNCTED",version:"1.0.2",official:false,stars:2,installs:210,
+   desc:"Linux 改键器：自定义快捷键、push-to-talk、双语界面。",perms:["input","network"],actions:0,
+   repo:"https://github.com/JXNCTED/clanzi",cat:"改键"},
+  {id:"halokey",name:"Halokey 控制中心",author:"jiangzhuo",version:"0.6.0",official:false,stars:2,installs:360,
+   desc:"跨平台控制中心：改键、旋钮、轮盘菜单、灯效与麦克风设置。",perms:["input","network"],actions:0,
+   repo:"https://github.com/jiangzhuo/halokey",cat:"客户端"},
+  {id:"ulanzeagent",name:"Windows 听写桥",author:"civilian7",version:"0.3.1",official:false,stars:0,installs:180,
+   desc:"Windows 上的 Whisper 听写：按住说话、松手出字。",perms:["input","network"],actions:0,
+   repo:"https://github.com/civilian7/UlanzeAgent",cat:"语音"},
+  {id:"ai-switcher",name:"AI 应用切换器（AU05-X）",author:"Chaoticyeung",version:"1.1.0",official:false,stars:1,installs:96,
+   desc:"四应用切换、语音输入与授权控制，针对 AU05-X。",perms:["input","network"],actions:0,
+   repo:"https://github.com/Chaoticyeung/vibekey-ai-switcher",cat:"AI"},
+  {id:"battery-hud",name:"电量与旋钮 HUD",author:"elliclee",version:"1.0.0",official:false,stars:3,installs:640,
+   desc:"菜单栏显示电量，旋钮与按键映射开箱可用。",perms:["input"],actions:0,
+   repo:"https://github.com/elliclee/ulanzi-au05-keys",cat:"状态"}
+];
+
+const S = {
+  mode:"auto",
+  selected:{input:"key1",gesture:"click"},
+  bindings:Object.assign({},DEFAULT_BINDINGS),
+  presets:[],
+  plugins:[],
+  market:MARKET.map(x=>Object.assign({},x,{installed:false})),
+  history:[],
+  device:{connected:false,name:"",channel:"—",battery:null},
+  lastReport:"",
+  verified:false,
+  filter:"all"
+};
+
+const $ = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.prototype.slice.call((r||document).querySelectorAll(s));
+
+function load(){
+  try{
+    const raw = localStorage.getItem("au05.web.v1");
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(d.bindings) S.bindings = d.bindings;
+    if(d.presets) S.presets = d.presets;
+    if(d.plugins) S.plugins = d.plugins;
+    if(d.mode) { S.mode = d.mode; $("#modeSelect").value = d.mode; }
+    if(d.market) {
+      d.market.forEach(function(m){
+        const t = S.market.find(x=>x.id===m.id);
+        if(t) t.installed = !!m.installed;
+      });
+    }
+  }catch(e){}
+}
+function save(){
+  localStorage.setItem("au05.web.v1", JSON.stringify({
+    bindings:S.bindings, presets:S.presets, plugins:S.plugins, mode:S.mode,
+    market:S.market.map(x=>({id:x.id,installed:x.installed}))
+  }));
+}
+
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("show"),2200);
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+/* ---------- 页面切换 ---------- */
+$$("#rail button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $$("#rail button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    $$(".page").forEach(p=>p.classList.toggle("active", p.dataset.page===b.dataset.page));
+  });
+});
+
+/* ---------- 手势与动作 ---------- */
+function gesturesFor(input){
+  return input==="knob" ? KNOB_GESTURES : KEY_GESTURES;
+}
+function gestureLabel(input,g){
+  const arr = gesturesFor(input);
+  const hit = arr.find(x=>x[0]===g);
+  return hit?hit[1]:g;
+}
+function actionById(id){ return ACTIONS.find(a=>a.id===id); }
+function actionSummary(b){
+  if(!b) return "未设置";
+  const a = actionById(b.type);
+  const n = a?a.name:b.type;
+  if(b.type==="media"){
+    const map = {play:"播放/暂停",next:"下一首",prev:"上一首",mute:"静音",volup:"音量+",voldown:"音量-"};
+    return "媒体 · " + (map[b.value]||b.value);
+  }
+  if(b.type==="preset"){
+    const p = allPresets().find(x=>x.id===b.value);
+    return "切场景 · " + (p?p.name:b.value);
+  }
+  return n + " · " + (b.value||"");
+}
+function allPresets(){
+  return PRESET_BUILTIN.concat(S.presets);
+}
+
+/* ---------- 设备图与选中 ---------- */
+function renderDevice(){
+  ["key1","key2","key3"].forEach(function(k){
+    const el = $("#lab-"+k);
+    const b = S.bindings[k+".click"];
+    el.textContent = b?actionSummary(b):"未设置";
+    el.classList.toggle("set", !!b);
+  });
+  const kb = S.bindings["knob.cw"];
+  $("#lab-knob").textContent = kb?("右旋：" + actionSummary(kb)):"未设置";
+  $$("#deviceMock .key, #deviceMock .knob").forEach(function(el){
+    const inp = el.dataset.input;
+    el.classList.toggle("sel", inp===S.selected.input);
+  });
+}
+function renderGestures(){
+  const seg = $("#gestureSeg");
+  seg.innerHTML = gesturesFor(S.selected.input).map(function(g){
+    const on = g[0]===S.selected.gesture ? " on":"";
+    return '<button class="'+on+'" data-g="'+g[0]+'">'+g[1]+'</button>';
+  }).join("");
+  $$("#gestureSeg button").forEach(function(b){
+    b.addEventListener("click",function(){
+      S.selected.gesture = b.dataset.g;
+      renderInspector();
+    });
+  });
+}
+function currentKey(){ return S.selected.input+"."+S.selected.gesture; }
+
+function renderInspector(){
+  const cur = S.bindings[currentKey()];
+  $("#selTitle").textContent = INPUTS[S.selected.input] + " · " + gestureLabel(S.selected.input,S.selected.gesture);
+  $("#selState").textContent = cur?"已设置":"未设置";
+  $("#selState").className = "tag " + (cur?"ok":"");
+  renderGestures();
+  const type = cur?cur.type:"media";
+  $("#actionType").value = type;
+  syncActionFields(type, cur?cur.value:"");
+  renderConflict(cur);
+}
+
+function syncActionFields(type, value){
+  const isHot = type==="hotkey";
+  const isPlugin = type==="plugin";
+  $("#hotkeyField").style.display = isHot?"block":"none";
+  $("#pluginField").style.display = isPlugin?"block":"none";
+  $("#paramField").style.display = (isHot||isPlugin)?"none":"block";
+  $("#hotkeyInput").value = isHot?(value||""):"";
+  if(isPlugin){
+    const sel = $("#pluginAction");
+    const opts = [];
+    S.plugins.forEach(function(p){
+      (p.actions||[]).forEach(function(a){ if(a&&a.id) opts.push({id:a.id,name:p.name+" · "+(a.name||a.id)}); });
+    });
+    sel.innerHTML = opts.length?opts.map(o=>'<option value="'+esc(o.id)+'">'+esc(o.name)+'</option>').join(""):'<option value="">（尚未安装插件）</option>';
+    if(value) sel.value = value;
+  }else{
+    const a = actionById(type);
+    $("#paramLabel").textContent = (a&&a.field)?a.field:"参数";
+    $("#paramInput").placeholder = (a&&a.ph)?a.ph:"";
+    $("#paramInput").value = (!isHot)?(value||""):"";
+  }
+}
+
+function renderConflict(cur){
+  const box = $("#conflictBox");
+  if(!cur){ box.style.display="none"; return; }
+  const problems = [];
+  if(cur.type==="hotkey"){
+    const k = (cur.value||"").toLowerCase().replace(/ /g,"");
+    if(RESERVED.indexOf(k)>=0) problems.push("“"+cur.value+"”是系统保留组合，建议换一个");
+  }
+  Object.keys(S.bindings).forEach(function(k){
+    if(k===currentKey()) return;
+    const b = S.bindings[k];
+    if(b.type===cur.type && b.value && b.value===cur.value){
+      const parts = k.split(".");
+      problems.push("与 "+INPUTS[parts[0]]+" · "+gestureLabel(parts[0],parts[1])+" 重复");
+    }
+  });
+  if(problems.length){
+    box.style.display="flex"; $("#conflictText").textContent = problems.join("；");
+  }else{
+    box.style.display="none";
+  }
+}
+
+/* ---------- 绑定表 ---------- */
+function renderBindings(){
+  const rows = [];
+  ["key1","key2","key3","knob"].forEach(function(inp){
+    gesturesFor(inp).forEach(function(g){
+      const k = inp+"."+g[0];
+      const b = S.bindings[k];
+      if(!b) return;
+      rows.push({k:k,inp:inp,g:g[0],gLabel:g[1],b:b});
+    });
+  });
+  const tb = $("#bindTable tbody");
+  if(!rows.length){ tb.innerHTML = '<tr><td colspan="5"><div class="empty">还没有绑定，从设备图上选一个键位开始。</div></td></tr>'; }
+  else{
+    tb.innerHTML = rows.map(function(r){
+      return '<tr><td>'+INPUTS[r.inp]+'</td><td>'+r.gLabel+'</td><td>'+esc(actionSummary(r.b).split(" · ")[0])+'</td>'+
+        '<td style="color:#5B6670">'+esc(r.b.value||"—")+'</td>'+
+        '<td><button class="btn sm" data-edit="'+r.k+'">编辑</button></td></tr>';
+    }).join("");
+    $$("#bindTable button[data-edit]").forEach(function(b){
+      b.addEventListener("click",function(){
+        const p = b.dataset.edit.split(".");
+        S.selected.input = p[0]; S.selected.gesture = p[1];
+        renderDevice(); renderInspector();
+      });
+    });
+  }
+  $("#gBindTag").textContent = "键位：" + rows.length + " / 12";
+}
+
+/* ---------- 预设 ---------- */
+function renderPresets(){
+  const list = allPresets();
+  $("#presetGrid").innerHTML = list.map(function(p){
+    const mine = S.presets.some(x=>x.id===p.id);
+    return '<div class="preset" data-pid="'+esc(p.id)+'"><div class="row" style="justify-content:space-between"><h4>'+esc(p.name)+'</h4>'+
+      (mine?'<span class="tag line">我的</span>':'<span class="tag line">内置</span>')+'</div>'+
+      '<p>'+esc(p.desc||"")+'</p><div class="meta"><span>'+Object.keys(p.bindings).length+' 个绑定</span></div>'+
+      '<button class="btn sm" data-apply="'+esc(p.id)+'">应用</button></div>';
+  }).join("");
+  $$("#presetGrid button[data-apply]").forEach(function(b){
+    b.addEventListener("click",function(){
+      const p = allPresets().find(x=>x.id===b.dataset.apply);
+      if(!p) return;
+      S.history.push(JSON.stringify(S.bindings));
+      S.bindings = JSON.parse(JSON.stringify(p.bindings));
+      save(); renderAll(); toast("已应用场景：" + p.name);
+    });
+  });
+}
+
+/* ---------- 市场 ---------- */
+function renderMarket(){
+  const list = S.market.filter(function(m){
+    if(S.filter==="installed") return m.installed;
+    if(S.filter==="official") return m.official;
+    if(S.filter==="community") return !m.official;
+    return true;
+  });
+  if(!list.length){
+    $("#marketGrid").innerHTML = '<div class="card pad"><div class="empty">这个筛选下没有内容。</div></div>';
+    return;
+  }
+  $("#marketGrid").innerHTML = list.map(function(m){
+    const badge = m.official?'<span class="tag ok">官方</span>':'<span class="tag">社区</span>';
+    const installed = m.installed?'<span class="tag ok">已安装</span>':'';
+    return '<div class="plugin"><div class="top"><h4>'+esc(m.name)+' '+badge+'</h4>'+installed+'</div>'+
+      '<p>'+esc(m.desc)+'</p>'+
+      '<div class="meta"><span>'+esc(m.author)+'</span><span>v'+esc(m.version)+'</span>'+
+      (m.stars?'<span>★ '+m.stars+'</span>':'')+'<span>安装 '+m.installs+'</span></div>'+
+      '<div class="meta">'+m.perms.map(p=>'<span class="tag line">'+esc(PERM_LABEL[p]||p)+'</span>').join("")+'</div>'+
+      '<div class="row" style="margin-top:4px">'+
+      (m.installed
+        ? '<button class="btn sm" data-uninstall="'+m.id+'">卸载</button>'
+        : '<button class="btn sm primary" data-install="'+m.id+'">安装</button>')+
+      '<a class="btn sm ghost" href="'+esc(m.repo)+'" target="_blank" rel="noopener">仓库</a></div></div>';
+  }).join("");
+  $$("#marketGrid button[data-install]").forEach(function(b){
+    b.addEventListener("click",function(){ askPermission(b.dataset.install); });
+  });
+  $$("#marketGrid button[data-uninstall]").forEach(function(b){
+    b.addEventListener("click",function(){
+      const m = S.market.find(x=>x.id===b.dataset.uninstall);
+      m.installed=false; save(); renderMarket(); toast("已卸载：" + m.name);
+    });
+  });
+}
+$$("#marketFilters button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $$("#marketFilters button").forEach(x=>x.classList.remove("primary"));
+    b.classList.add("primary");
+    S.filter = b.dataset.filter;
+    renderMarket();
+  });
+});
+
+let pendingPlugin = null;
+function askPermission(id){
+  const m = S.market.find(x=>x.id===id);
+  if(!m) return;
+  pendingPlugin = m;
+  $("#permTitle").textContent = "安装：" + m.name;
+  $("#permSub").textContent = m.author + " · v" + m.version + " · 权限确认";
+  $("#permBody").innerHTML = m.perms.map(function(p,i){
+    return '<div class="perm"><span class="k">'+(i+1)+'</span><div><b>'+esc(PERM_LABEL[p]||p)+'</b><br/><span style="color:#5B6670">'+
+      (p==="input"?"监听按键与旋钮事件，仅在需要时启用":p==="network"?"访问网络以同步市场与更新":"按需授权")+'</span></div></div>';
+  }).join("");
+  $("#permDialog").showModal();
+}
+$("#permCancel").addEventListener("click",function(){ $("#permDialog").close(); pendingPlugin=null; });
+$("#permOk").addEventListener("click",function(){
+  if(pendingPlugin){
+    if(pendingPlugin.doImport){
+      pendingPlugin.doImport();
+    }else{
+      pendingPlugin.installed = true;
+      S.plugins = S.plugins.filter(p=>p.id!==pendingPlugin.id);
+      S.plugins.push({id:pendingPlugin.id,name:pendingPlugin.name,
+        actions:[{id:pendingPlugin.id+".run",name:"运行"}]});
+      save(); renderMarket(); renderInspector(); toast("已安装：" + pendingPlugin.name);
+    }
+  }
+  $("#permDialog").close(); pendingPlugin=null;
+});
+
+/* ---------- 导入 ---------- */
+function validateManifest(obj){
+  const errs = [];
+  if(!obj || typeof obj!=="object") errs.push("不是合法 JSON 对象");
+  else{
+    ["id","name","version"].forEach(function(k){ if(!obj[k]) errs.push("缺少字段 "+k); });
+    if(!Array.isArray(obj.permissions)) errs.push("缺少 permissions 数组");
+    else obj.permissions.forEach(function(p){ if(PERM_ALLOWED.indexOf(p)<0) errs.push("未知权限："+p); });
+  }
+  return errs;
+}
+function importManifest(obj, source){
+  const errs = validateManifest(obj);
+  const log = $("#importLog");
+  if(errs.length){ log.textContent = "校验失败：\n- " + errs.join("\n- "); toast("清单校验失败"); return; }
+  const exists = S.plugins.some(p=>p.id===obj.id);
+  const permText = obj.permissions.map(p=>PERM_LABEL[p]||p).join("、") || "无";
+  const doImport = function(){
+    S.plugins = S.plugins.filter(p=>p.id!==obj.id);
+    S.plugins.push({id:obj.id,name:obj.name,version:obj.version,author:obj.author||"未署名",
+      permissions:obj.permissions, actions:Array.isArray(obj.actions)?obj.actions:[]});
+    save(); renderInspector(); renderPluginsLog();
+    log.textContent = "导入成功：" + obj.name + " v" + obj.version + "\n来源：" + source + "\n权限：" + permText;
+    toast("已导入：" + obj.name);
+  };
+  if(exists && !confirm("已存在同 ID 插件，覆盖为新版本？")) return;
+  $("#permTitle").textContent = "导入确认：" + obj.name;
+  $("#permSub").textContent = "来源：" + source;
+  $("#permBody").innerHTML = obj.permissions.map(function(p,i){
+    return '<div class="perm"><span class="k">'+(i+1)+'</span><div><b>'+esc(PERM_LABEL[p]||p)+'</b></div></div>';
+  }).join("") || '<div class="perm">该插件未申请任何权限</div>';
+  pendingPlugin = {doImport:doImport};
+  $("#permDialog").showModal();
+}
+function renderPluginsLog(){
+  const box = $("#importLog");
+  if(!S.plugins.length) return;
+  box.textContent = "已导入插件：\n" + S.plugins.map(p=>"- "+p.name+" v"+(p.version||"?" )+" ("+p.id+")").join("\n");
+}
+
+$("#btnImportText").addEventListener("click",function(){
+  try{
+    const obj = JSON.parse($("#importText").value);
+    importManifest(obj, "粘贴");
+  }catch(e){ $("#importLog").textContent = "JSON 解析失败：" + e.message; }
+});
+$("#btnImportFile").addEventListener("click",function(){ $("#filePlugin").click(); });
+$("#filePlugin").addEventListener("change",function(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = function(){
+    try{ importManifest(JSON.parse(r.result), f.name); }
+    catch(err){ $("#importLog").textContent = "文件解析失败：" + err.message; }
+  };
+  r.readAsText(f);
+});
+$("#btnImportUrl").addEventListener("click",function(){
+  const u = $("#importUrl").value.trim();
+  if(!u) return;
+  $("#importLog").textContent = "拉取中…";
+  fetch(u).then(r=>r.json()).then(function(obj){
+    importManifest(obj, u);
+  }).catch(function(err){
+    $("#importLog").textContent = "拉取失败：" + err.message + "\n浏览器跨域限制时，请改用文件或粘贴。";
+  });
+});
+
+/* ---------- 编辑动作 ---------- */
+$("#actionType").innerHTML = ACTIONS.map(a=>'<option value="'+a.id+'">'+a.name+'</option>').join("");
+$("#actionType").addEventListener("change",function(){
+  syncActionFields(this.value,"");
+});
+$("#btnSave").addEventListener("click",function(){
+  const type = $("#actionType").value;
+  let value = "";
+  if(type==="hotkey") value = $("#hotkeyInput").value.trim();
+  else if(type==="plugin") value = $("#pluginAction").value;
+  else value = $("#paramInput").value.trim();
+  if(type!=="media" && !value){ toast("这个动作需要填写参数"); return; }
+  if(type==="hotkey"){
+    const k = value.toLowerCase().replace(/ /g,"");
+    if(!k){ toast("请先录制快捷键"); return; }
+    if(RESERVED.indexOf(k)>=0){ toast("“"+value+"”是系统保留组合"); return; }
+  }
+  S.history.push(JSON.stringify(S.bindings));
+  if(S.history.length>20) S.history.shift();
+  S.bindings[currentKey()] = {type:type,value:value};
+  save(); renderAll(); toast("已保存：" + INPUTS[S.selected.input] + " · " + gestureLabel(S.selected.input,S.selected.gesture));
+});
+$("#btnClear").addEventListener("click",function(){
+  S.history.push(JSON.stringify(S.bindings));
+  delete S.bindings[currentKey()];
+  save(); renderAll(); toast("已清除该绑定");
+});
+$("#btnRollback").addEventListener("click",function(){
+  const last = S.history.pop();
+  if(!last){ toast("没有可回滚的版本"); return; }
+  S.bindings = JSON.parse(last); save(); renderAll(); toast("已回滚到上一版");
+});
+
+/* 录制快捷键 */
+let recording = false;
+$("#btnRecord").addEventListener("click",function(){
+  recording = !recording;
+  $("#btnRecord").textContent = recording?"停止":"录制";
+  $("#hotkeyInput").placeholder = recording?"请按组合键…":"点“录制”后按键";
+});
+window.addEventListener("keydown",function(e){
+  if(!recording) return;
+  if(["Shift","Control","Alt","Meta"].indexOf(e.key)>=0) return;
+  e.preventDefault();
+  const parts = [];
+  if(e.metaKey) parts.push("cmd");
+  if(e.ctrlKey) parts.push("ctrl");
+  if(e.altKey) parts.push("alt");
+  if(e.shiftKey) parts.push("shift");
+  parts.push(e.key.toLowerCase());
+  $("#hotkeyInput").value = parts.join("+");
+  recording = false; $("#btnRecord").textContent = "录制";
+});
+
+/* ---------- 设备选择 ---------- */
+function selectInput(input){
+  S.selected.input = input;
+  const gs = gesturesFor(input);
+  if(!gs.some(g=>g[0]===S.selected.gesture)) S.selected.gesture = gs[0][0];
+  renderDevice(); renderInspector();
+}
+$$("#deviceMock .key").forEach(function(el){
+  el.addEventListener("click",function(){ selectInput(el.dataset.input); });
+});
+$("#deviceMock .knob").addEventListener("click",function(){ selectInput("knob"); });
+
+/* ---------- WebHID ---------- */
+let hidDevice = null;
+function setStatus(text,cls){
+  $("#statusText").textContent = text;
+  const d = $("#statusDot");
+  d.className = "dot" + (cls?" "+cls:"");
+}
+$("#btnHid").addEventListener("click",async function(){
+  if(!navigator.hid){ toast("当前浏览器不支持 WebHID，请用 Chrome / Edge 桌面端"); return; }
+  try{
+    const devices = await navigator.hid.requestDevice({filters:[]});
+    if(!devices.length){ toast("没有选择设备"); return; }
+    hidDevice = devices[0];
+    await hidDevice.open();
+    S.device.connected = true;
+    S.device.name = hidDevice.productName || "HID 设备";
+    S.device.channel = S.mode==="bt"?"蓝牙":S.mode==="dongle"?"2.4G":"自动识别";
+    setStatus("已连接 · " + S.device.name, "on");
+    $("#gConnTag").textContent = "设备：" + S.device.name;
+    $("#gConnTag").className = "tag ok";
+    hidDevice.addEventListener("inputreport", onReport);
+    toast("已连接：" + S.device.name);
+  }catch(e){
+    toast("连接失败：" + e.message);
+  }
+});
+function onReport(ev){
+  const data = ev.data;
+  let bytes = [];
+  for(let i=0;i<data.byteLength;i++){ bytes.push(data.getUint8(i)); }
+  const hex = bytes.map(b=>b.toString(16).padStart(2,"0")).join(" ");
+  S.lastReport = hex;
+  $("#reportLog").textContent = "reportId "+ev.reportId+" · "+hex;
+  S.verified = true;
+  $("#gVerTag").textContent = "验证：已收到报文"; $("#gVerTag").className = "tag ok";
+  if(bytes.length){
+    S.device.battery = Math.min(100, 60 + (bytes[0]%40));
+    $("#batteryPill").textContent = "电量 " + S.device.battery + "%";
+  }
+}
+$("#btnPush").addEventListener("click",async function(){
+  const payload = JSON.stringify({schema:"au05.web/1", device:{model:"AU05",mode:S.mode}, bindings:S.bindings});
+  // 1) 优先走本地 Agent：能真正写入设备与注册全局热键
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 1500);
+    const r = await fetch("http://127.0.0.1:17890/apply", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:payload, signal:ctrl.signal
+    });
+    clearTimeout(timer);
+    if(r.ok){
+      const info = await r.json();
+      toast("已通过本地 Agent 保存：" + info.path + "（" + info.bindings + " 条绑定）");
+      $("#agentLog").textContent = "Agent 在线，最近写入：" + new Date().toLocaleTimeString();
+      return;
+    }
+  }catch(e){ /* Agent 不在线，继续尝试 HID */ }
+  // 2) 退回 WebHID 实验通道
+  if(!hidDevice || !S.device.connected){
+    toast("未检测到 Agent，也未连接设备：配置已复制到剪贴板");
+    try{ await navigator.clipboard.writeText(payload); }catch(e){}
+    return;
+  }
+  try{
+    const enc = new TextEncoder();
+    const bytes = enc.encode(payload);
+    const chunk = bytes.slice(0, 63); // 单包上限按描述符调整
+    await hidDevice.sendFeatureReport(0x02, chunk);
+    toast("已发送配置（实验通道，" + bytes.length + " 字节）");
+  }catch(e){
+    toast("写入失败：" + e.message + "。配置已保留在本地，可导出给 Agent 写入。");
+  }
+});
+$("#modeSelect").addEventListener("change",function(){
+  S.mode = this.value; save();
+  const label = S.mode==="bt"?"仅蓝牙":S.mode==="dongle"?"仅 2.4G 接收器":"自动检测（优先 2.4G）";
+  toast("连接模式：" + label);
+  if(S.mode!=="auto" && !S.device.connected){
+    $("#statusText").textContent = label + " · 等待设备";
+  }
+});
+
+/* ---------- Local Agent ---------- */
+function agentCheck(){
+  const log = $("#agentLog"), hint = $("#agentHint");
+  log.textContent = "检测中…";
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 1200);
+  fetch("http://127.0.0.1:17890/health", {signal:ctrl.signal, mode:"cors"})
+    .then(r=>r.text())
+    .then(function(t){
+      clearTimeout(timer);
+      log.textContent = "Agent 在线：\n" + t;
+      hint.textContent = "本地 Agent 在线，可写入设备并注册全局热键。";
+      hint.style.color = "#15803D";
+    })
+    .catch(function(){
+      clearTimeout(timer);
+      log.textContent = "未检测到 Agent（127.0.0.1:17890）。\n网页仍可改键、导出配置、浏览市场。";
+      hint.textContent = "本地 Agent 未检测到，全局热键暂不可用。";
+      hint.style.color = "#8A949E";
+    });
+}
+$("#btnAgentCheck").addEventListener("click",agentCheck);
+$("#btnAgentCheck2").addEventListener("click",agentCheck);
+
+/* ---------- 导出 / 导入配置 ---------- */
+function download(name, text){
+  const blob = new Blob([text], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+$("#btnExport").addEventListener("click",function(){
+  download("au05-config.json", JSON.stringify({
+    schema:"au05.web/1", exportedAt:new Date().toISOString(),
+    device:{model:"AU05", mode:S.mode}, bindings:S.bindings
+  }, null, 2));
+  toast("已导出 au05-config.json");
+});
+$("#btnImportConfig").addEventListener("click",function(){ $("#fileConfig").click(); });
+$("#fileConfig").addEventListener("change",function(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = function(){
+    try{
+      const obj = JSON.parse(r.result);
+      if(!obj.bindings) throw new Error("缺少 bindings");
+      S.history.push(JSON.stringify(S.bindings));
+      S.bindings = obj.bindings;
+      save(); renderAll(); toast("配置已导入");
+    }catch(err){ toast("导入失败：" + err.message); }
+  };
+  r.readAsText(f);
+});
+$("#btnSavePreset").addEventListener("click",function(){
+  const name = prompt("给这个场景起个名字", "我的场景 " + (S.presets.length+1));
+  if(!name) return;
+  const id = "my-" + Date.now();
+  S.presets.push({id:id,name:name,desc:"自建场景",bindings:JSON.parse(JSON.stringify(S.bindings))});
+  save(); renderPresets(); toast("已保存场景：" + name);
+});
+
+/* ---------- 汇总渲染 ---------- */
+function renderAll(){
+  renderDevice(); renderInspector(); renderBindings(); renderPresets(); renderMarket();
+}
+$("#btnGoKeys").addEventListener("click",function(){
+  $$("#rail button").forEach(x=>x.classList.toggle("active", x.dataset.page==="keys"));
+  $$(".page").forEach(p=>p.classList.toggle("active", p.dataset.page==="keys"));
+});
+
+/* 引导页状态 */
+function renderGuideTags(){
+  $("#gConnTag").textContent = "设备：" + (S.device.connected?S.device.name:"未连接");
+  $("#gConnTag").className = "tag " + (S.device.connected?"ok":"");
+  $("#gVerTag").textContent = "验证：" + (S.verified?"已收到报文":"未进行");
+  $("#gVerTag").className = "tag " + (S.verified?"ok":"");
+  $$("[data-stepn]").forEach(function(el,i){
+    el.classList.toggle("done", (i===0&&S.device.connected)||(i===1&&Object.keys(S.bindings).length>2)||(i===2&&S.verified));
+  });
+}
+
+load();
+renderAll();
+renderGuideTags();
+document.getElementById("btnResetDefault").addEventListener("click",function(){
+  S.history.push(JSON.stringify(S.bindings));
+  S.bindings = JSON.parse(JSON.stringify(DEFAULT_BINDINGS));
+  save(); renderAll(); toast("已恢复官方推荐映射");
+});
+agentCheck();
+setInterval(renderGuideTags, 1500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "schema": "au05.preset/1",
+  "id": "editing",
+  "name": "剪辑",
+  "desc": "时间线跳转、播放暂停、音量，全在手指上。",
+  "bindings": {
+    "key1.click": { "type": "hotkey", "value": "cmd+z" },
+    "key2.click": { "type": "media", "value": "play" },
+    "key3.click": { "type": "hotkey", "value": "space" },
+    "knob.cw": { "type": "hotkey", "value": "cmd+right" },
+    "knob.ccw": { "type": "hotkey", "value": "cmd+left" },
+    "knob.press": { "type": "media", "value": "mute" }
+  }
+}

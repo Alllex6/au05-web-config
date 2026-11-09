@@ -1,0 +1,14 @@
+{
+  "schema": "au05.preset/1",
+  "id": "meeting",
+  "name": "会议",
+  "desc": "静音、开麦、切窗口，开会不手忙脚乱。",
+  "bindings": {
+    "key1.click": { "type": "media", "value": "mute" },
+    "key2.click": { "type": "hotkey", "value": "cmd+shift+m" },
+    "key3.click": { "type": "url", "value": "https://meeting.tencent.com" },
+    "knob.cw": { "type": "media", "value": "volup" },
+    "knob.ccw": { "type": "media", "value": "voldown" },
+    "knob.press": { "type": "media", "value": "mute" }
+  }
+}
