@@ -149,6 +149,15 @@ dialog::backdrop{background:rgba(16,24,40,.4)}
 .mod-chip:hover{border-color:#BFD9D5}
 .mod-chip.on{border-color:var(--accent);background:#F0FAF8;color:#0B5E58;box-shadow:inset 0 0 0 1px rgba(15,118,110,.15)}
 .mod-chip.on span{color:#0B5E58}
+.dev-row{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.dev-row:last-child{border-bottom:0}
+.dev-name{flex:0 0 130px;color:#4A555D}
+.dev-val{flex:1;color:#101828;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dev-st{flex:0 0 84px;text-align:right;font-size:11.5px;color:#98A2AC}
+.dev-st.ok{color:#15803D}
+.dev-st.err{color:#B42318}
+.dev-st.warn{color:#B54708}
+.dev-st.busy{color:#0B5E58}
 @media (max-width:960px){
   .shell{grid-template-columns:1fr}
   .rail{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}
@@ -170,6 +179,7 @@ dialog::backdrop{background:rgba(16,24,40,.4)}
   </select>
   <div class="spacer"></div>
   <div class="pill" id="batteryPill" title="电量">电量 —</div>
+  <button class="btn ghost" id="btnReadDev">读取键表</button>
   <button class="btn" id="btnHid">连接设备</button>
   <button class="btn primary" id="btnPush">写入设备</button>
 </header>
@@ -351,7 +361,9 @@ dialog::backdrop{background:rgba(16,24,40,.4)}
           <div class="kicker">能力边界</div>
           <table class="mt8"><thead><tr><th>能力</th><th>纯网页</th><th>本地 Agent</th></tr></thead><tbody>
             <tr><td>读取 HID 报文、识别按键</td><td><span class="tag ok">可以</span></td><td><span class="tag ok">可以</span></td></tr>
-            <tr><td>写入配置到设备</td><td><span class="tag warn">实验</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>写入键表到设备（6 个槽位）</td><td><span class="tag ok">可以</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>写后读回校验 / 读电量</td><td><span class="tag ok">可以</span></td><td><span class="tag ok">可以</span></td></tr>
+            <tr><td>双击、长按、按压+旋转等手势</td><td><span class="tag bad">设备不存</span></td><td><span class="tag ok">可以</span></td></tr>
             <tr><td>任意应用内触发快捷键</td><td><span class="tag bad">不行</span></td><td><span class="tag ok">可以</span></td></tr>
             <tr><td>后台常驻、开机自启</td><td><span class="tag bad">不行</span></td><td><span class="tag ok">可以</span></td></tr>
             <tr><td>浏览器覆盖</td><td colspan="2">Chrome / Edge 支持 WebHID；Safari、Firefox、移动端不支持</td></tr>
@@ -369,14 +381,28 @@ dialog::backdrop{background:rgba(16,24,40,.4)}
       <div class="card pad mt16">
         <div class="kicker">已知限制</div>
         <ul style="margin:10px 0 0 18px;padding:0;color:var(--sub);font-size:12.5px;line-height:1.9">
-          <li>设备通道识别依赖厂商 HID 描述符；不同固件版本的报文长度可能不同。</li>
-          <li>“写入设备”在纯网页模式下按实验通道发送，失败不会改动设备原配置。</li>
-          <li>旋钮加速旋转会做 30ms 节流，避免事件堆积。</li>
+          <li>写入走厂商通道：report ID 0x55、TEA 加密、64 字节明文，与 Studio 用的通道一致；必须选到 usage page 0xFFFC 的接口，标准键盘接口写不了。</li>
+          <li>设备端只有 6 个键槽（键 1/2/3、旋钮按下、左右旋转），每槽最多 4 个键码；双击、长按、文本与应用类动作只能由 Agent 执行。</li>
+          <li>媒体键用系统页（类型 0x03），取值范围官方未公开；写完会读回校验，不支持就标失败，不会写坏原配置。</li>
+          <li>写操作是"写后读回"验证，失败只影响该槽位。</li>
         </ul>
       </div>
     </section>
   </main>
 </div>
+
+<dialog id="devDialog">
+  <div class="pad">
+    <div class="row" style="justify-content:space-between">
+      <h3 id="devTitle" style="margin:0">写入设备</h3>
+      <button class="btn sm ghost" id="devCloseX">关闭</button>
+    </div>
+    <p class="hint" id="devSub"></p>
+    <div id="devRows"></div>
+    <div class="hint" id="devFoot"></div>
+    <div class="row mt12"><button class="btn primary" id="devAgain">重新执行</button><button class="btn" id="devClose">关闭</button></div>
+  </div>
+</dialog>
 
 <div class="toast" id="toast"></div>
 
@@ -1168,80 +1194,416 @@ $$("#deviceMock .key").forEach(function(el){
 });
 $("#deviceMock .knob").addEventListener("click",function(){ selectInput("knob"); });
 
-/* ---------- WebHID ---------- */
-let hidDevice = null;
-function setStatus(text,cls){
+/* ---------- AU05 厂商通道协议（report 0x55 / TEA / 64 字节明文） ----------
+   协议常量与报文格式来自开源实现 halokey（crates/proto），TEA 密钥与自检向量
+   来自 Studio 的 kwdm 动态库并在真机验证过：
+   TEA_Enc(00×8) == 38 90 c4 99 a3 60 aa ad。 */
+const AU05_VID = 0xFFF1, AU05_PID = 0x00DD, AU05_REPORT_ID = 0x55;
+const TEA_KEY = [0xCAA5BACA, 0xBC2A8A6D, 0xCA5A9EBA, 0x9BB88BCA];
+const TEA_DELTA = 0x9E3779B9, TEA_ROUNDS = 32, TEA_DECRYPT_SUM = 0xC6EF3720;
+const AU05_ACCESS_READ = 0x11, AU05_ACCESS_WRITE_ACK = 0x14;
+const AU05_MAX_ENTRIES = 4;
+
+function teaEncryptBlock(buf, off){
+  const K = TEA_KEY;
+  let v0 = (buf[off] | buf[off+1]<<8 | buf[off+2]<<16 | buf[off+3]<<24) >>> 0;
+  let v1 = (buf[off+4] | buf[off+5]<<8 | buf[off+6]<<16 | buf[off+7]<<24) >>> 0;
+  let sum = 0;
+  for(let i=0;i<TEA_ROUNDS;i++){
+    sum = (sum + TEA_DELTA) >>> 0;
+    const a = ((((v1 << 4) >>> 0) + K[0]) >>> 0) ^ ((v1 + sum) >>> 0) ^ ((((v1 >>> 5) + K[1]) >>> 0));
+    v0 = (v0 + a) >>> 0;
+    const b = ((((v0 << 4) >>> 0) + K[2]) >>> 0) ^ ((v0 + sum) >>> 0) ^ ((((v0 >>> 5) + K[3]) >>> 0));
+    v1 = (v1 + b) >>> 0;
+  }
+  buf[off] = v0 & 0xFF; buf[off+1] = (v0 >>> 8) & 0xFF; buf[off+2] = (v0 >>> 16) & 0xFF; buf[off+3] = (v0 >>> 24) & 0xFF;
+  buf[off+4] = v1 & 0xFF; buf[off+5] = (v1 >>> 8) & 0xFF; buf[off+6] = (v1 >>> 16) & 0xFF; buf[off+7] = (v1 >>> 24) & 0xFF;
+}
+function teaDecryptBlock(buf, off){
+  const K = TEA_KEY;
+  let v0 = (buf[off] | buf[off+1]<<8 | buf[off+2]<<16 | buf[off+3]<<24) >>> 0;
+  let v1 = (buf[off+4] | buf[off+5]<<8 | buf[off+6]<<16 | buf[off+7]<<24) >>> 0;
+  let sum = TEA_DECRYPT_SUM;
+  for(let i=0;i<TEA_ROUNDS;i++){
+    const b = ((((v0 << 4) >>> 0) + K[2]) >>> 0) ^ ((v0 + sum) >>> 0) ^ ((((v0 >>> 5) + K[3]) >>> 0));
+    v1 = (v1 - b) >>> 0;
+    const a = ((((v1 << 4) >>> 0) + K[0]) >>> 0) ^ ((v1 + sum) >>> 0) ^ ((((v1 >>> 5) + K[1]) >>> 0));
+    v0 = (v0 - a) >>> 0;
+    sum = (sum - TEA_DELTA) >>> 0;
+  }
+  buf[off] = v0 & 0xFF; buf[off+1] = (v0 >>> 8) & 0xFF; buf[off+2] = (v0 >>> 16) & 0xFF; buf[off+3] = (v0 >>> 24) & 0xFF;
+  buf[off+4] = v1 & 0xFF; buf[off+5] = (v1 >>> 8) & 0xFF; buf[off+6] = (v1 >>> 16) & 0xFF; buf[off+7] = (v1 >>> 24) & 0xFF;
+}
+/* 请求明文 → 线上 64 字节（[0]=0x55，随后是 63 字节密文） */
+function encodeRequest(bytes){
+  const plain = new Uint8Array(64);
+  plain.set(bytes.slice(0, 64));
+  for(let i=0;i<64;i+=8) teaEncryptBlock(plain, i);
+  const wire = new Uint8Array(64);
+  wire[0] = AU05_REPORT_ID;
+  wire.set(plain.subarray(0, 63), 1);
+  return wire;
+}
+/* 设备回复 → 解密后的 56 字节；接受 64 字节带 0x55 或 63 字节不带前缀 */
+function decodeReport(bytes){
+  const arr = Array.prototype.slice.call(bytes);
+  let off;
+  if(arr.length === 64 && arr[0] === AU05_REPORT_ID) off = 1;
+  else if(arr.length === 63) off = 0;
+  else return null;
+  if(arr.length - off < 56) return null;
+  const plain = new Uint8Array(56);
+  plain.set(arr.slice(off, off+56));
+  for(let i=0;i<56;i+=8) teaDecryptBlock(plain, i);
+  return plain;
+}
+function au05FrameCmd(frame){ return (frame[0] & 0x1F); }
+function au05IsReply(frame){ return (frame[0] & 0x80) !== 0 || ((frame[3] & 0x10) !== 0); }
+
+/* 键表命令：index 0-5 = 键1/键2/键3/旋钮按下/旋钮右旋/旋钮左旋 */
+function au05ReadRequest(index){ return [0x01,0x06,0x50,0x01,index]; }
+function au05WriteRequest(index, entries){
+  const body = [0x01,0x06,0x50,0x04,index,0x01,entries.length];
+  entries.forEach(function(e){ body.push((e.sign?0x80:0)|(e.type & 0x7F), e.code & 0xFF); });
+  return body;
+}
+function au05ParseReadReply(frame, index){
+  if(au05FrameCmd(frame) !== 0x01 || frame[1] !== 0x06 || frame[2] !== 0x50) return null;
+  if(frame[3] !== AU05_ACCESS_READ || frame[4] !== index) return null;
+  const num = frame[6], entries = [];
+  for(let i=0;i<num && 7 + i*2 + 1 < frame.length;i++){
+    entries.push({ type: frame[7+i*2] & 0x7F, sign: (frame[7+i*2] & 0x80) !== 0, code: frame[8+i*2] });
+  }
+  return entries;
+}
+function au05ParseWriteAck(frame, index){
+  return au05FrameCmd(frame) === 0x01 && frame[1] === 0x06 && frame[2] === 0x50 && frame[3] === AU05_ACCESS_WRITE_ACK && frame[4] === index;
+}
+/* 电量：请求 01 01 02 01，回复 81 01 02 11 <mv lo hi> <pct lo hi> .. <charging> */
+function au05BatteryRequest(){ return [0x01,0x01,0x02,0x01]; }
+function au05ParseBattery(frame){
+  if(frame[0] !== 0x81 || frame[1] !== 0x01 || frame[2] !== 0x02 || frame[3] !== 0x11) return null;
+  const mv = frame[4] | (frame[5] << 8);
+  if(mv === 0xFFFF) return null;
+  const pct = frame[6] | (frame[7] << 8);
+  return { millivolts: mv, percent: pct <= 100 ? pct : null, charging: frame[10] === 0 ? false : frame[10] === 1 ? true : null };
+}
+
+/* HID 键码：类型 0x02 键盘页，0x03 系统/多媒体页（设备端取值范围未完整实测） */
+const HID_MOD = { ctrl: 0xE0, shift: 0xE1, alt: 0xE2, cmd: 0xE3, win: 0xE3 };
+const HID_KEYS = {
+  a:0x04,b:0x05,c:0x06,d:0x07,e:0x08,f:0x09,g:0x0A,h:0x0B,i:0x0C,j:0x0D,k:0x0E,l:0x0F,m:0x10,
+  n:0x11,o:0x12,p:0x13,q:0x14,r:0x15,s:0x16,t:0x17,u:0x18,v:0x19,w:0x1A,x:0x1B,y:0x1C,z:0x1D,
+  "1":0x1E,"2":0x1F,"3":0x20,"4":0x21,"5":0x22,"6":0x23,"7":0x24,"8":0x25,"9":0x26,"0":0x27,
+  enter:0x28,esc:0x29,backspace:0x2A,tab:0x2B,space:0x2C,
+  "-":0x2D,"=":0x2E,"[":0x2F,"]":0x30,"\\":0x31,";":0x33,"'":0x34,"`":0x35,",":0x36,".":0x37,"/":0x38,
+  f1:0x3A,f2:0x3B,f3:0x3C,f4:0x3D,f5:0x3E,f6:0x3F,f7:0x40,f8:0x41,f9:0x42,f10:0x43,f11:0x44,f12:0x45,
+  insert:0x49,home:0x4A,pageup:0x4B,delete:0x4C,end:0x4D,pagedown:0x4E,right:0x4F,left:0x50,down:0x51,up:0x52
+};
+const HID_MEDIA = { play:0xCD, next:0xB5, prev:0xB6, volup:0xE9, voldown:0xEA, mute:0xE2 };
+const MEDIA_LABEL = { 0xCD:"播放/暂停", 0xB5:"下一首", 0xB6:"上一首", 0xE9:"音量+", 0xEA:"音量-", 0xE2:"静音" };
+
+function au05EntriesForBinding(b){
+  if(!b) return null;
+  if(b.type === "hotkey"){
+    const toks = normHotkey(b.value).split("+").filter(Boolean);
+    if(!toks.length) return null;
+    const entries = [];
+    toks.forEach(function(t){ if(HID_MOD[t]) entries.push({ type:0x02, code:HID_MOD[t], sign:false }); });
+    const main = toks.filter(function(t){ return !HID_MOD[t]; })[0];
+    if(main){
+      if(!HID_KEYS[main]) return null;
+      entries.push({ type:0x02, code:HID_KEYS[main], sign:false });
+    }
+    if(!entries.length || entries.length > AU05_MAX_ENTRIES) return null;
+    return entries;
+  }
+  if(b.type === "media"){
+    const code = HID_MEDIA[b.value];
+    return code ? [{ type:0x03, code:code, sign:false }] : null;
+  }
+  return null;  /* text / url / app / preset / ai / plugin 需要 Agent 执行 */
+}
+function au05EntriesEqual(a, b){
+  if(!a || !b || a.length !== b.length) return false;
+  for(let i=0;i<a.length;i++){
+    if(a[i].type !== b[i].type || a[i].code !== b[i].code || !!a[i].sign !== !!b[i].sign) return false;
+  }
+  return true;
+}
+function au05DescribeEntry(e){
+  if(e.type === 0x02){
+    for(const k in HID_MOD) if(HID_MOD[k] === e.code) return MOD_LABEL[k];
+    for(const k in HID_KEYS) if(HID_KEYS[k] === e.code) return (KEY_LABEL[k] || k.toUpperCase());
+    return "usage 0x" + e.code.toString(16).toUpperCase();
+  }
+  if(e.type === 0x03){
+    if(MEDIA_LABEL[e.code]) return MEDIA_LABEL[e.code];
+    return "媒体码 0x" + e.code.toString(16).toUpperCase();
+  }
+  if(e.type === 0x07) return "鼠标码 0x" + e.code.toString(16).toUpperCase();
+  return "0x" + e.type.toString(16) + ":0x" + e.code.toString(16);
+}
+/* 调试钩子：便于自动化测试与故障排查（不含额外秘密，页面里本来就有这些常量） */
+try{ window.__au05 = { encodeRequest: encodeRequest, decodeReport: decodeReport, writeRequest: au05WriteRequest, readRequest: au05ReadRequest }; }catch(e){}
+
+function au05DescribeEntries(entries){
+  return entries.map(au05DescribeEntry).join(" + ");
+}
+
+/* ---------- HID 连接与设备写入 ---------- */
+const DEVICE_SLOTS = [
+  { index:0, id:"key1.click", name:"键 1 · 单击" },
+  { index:1, id:"key2.click", name:"键 2 · 单击" },
+  { index:2, id:"key3.click", name:"键 3 · 单击" },
+  { index:3, id:"knob.press", name:"旋钮 · 按下" },
+  { index:4, id:"knob.cw", name:"旋钮 · 右旋" },
+  { index:5, id:"knob.ccw", name:"旋钮 · 左旋" }
+];
+const DEVICE_SLOT_IDS = DEVICE_SLOTS.map(function(s){ return s.id; });
+
+let hidDevice = null, pendingReq = null;
+
+function setStatus(text, cls){
   $("#statusText").textContent = text;
   const d = $("#statusDot");
-  d.className = "dot" + (cls?" "+cls:"");
+  if(d) d.className = "dot" + (cls ? " " + cls : "");
 }
-$("#btnHid").addEventListener("click",async function(){
-  if(!navigator.hid){ toast("当前浏览器不支持 WebHID，请用 Chrome / Edge 桌面端"); return; }
-  try{
-    const devices = await navigator.hid.requestDevice({filters:[]});
-    if(!devices.length){ toast("没有选择设备"); return; }
-    hidDevice = devices[0];
-    await hidDevice.open();
-    S.device.connected = true;
-    S.device.name = hidDevice.productName || "HID 设备";
-    S.device.channel = S.mode==="bt"?"蓝牙":S.mode==="dongle"?"2.4G":"自动识别";
-    setStatus("已连接 · " + S.device.name, "on");
-    $("#gConnTag").textContent = "设备：" + S.device.name;
-    $("#gConnTag").className = "tag ok";
-    hidDevice.addEventListener("inputreport", onReport);
-    toast("已连接：" + S.device.name);
-  }catch(e){
-    toast("连接失败：" + e.message);
+
+function hasVendorCollection(dev){
+  return (dev.collections || []).some(function(c){ return c.usagePage === 0xFFFC; });
+}
+async function ensureHid(forcePicker){
+  if(hidDevice && hidDevice.opened) return hidDevice;
+  if(!navigator.hid) throw new Error("当前浏览器不支持 WebHID，请用 Chrome / Edge 桌面版");
+  let picked = null;
+  if(!forcePicker){
+    const granted = await navigator.hid.getDevices();
+    picked = granted.filter(function(d){
+      return d.vendorId === AU05_VID && d.productId === AU05_PID && hasVendorCollection(d);
+    })[0] || null;
   }
-});
-function onReport(ev){
-  const data = ev.data;
-  let bytes = [];
-  for(let i=0;i<data.byteLength;i++){ bytes.push(data.getUint8(i)); }
-  const hex = bytes.map(b=>b.toString(16).padStart(2,"0")).join(" ");
-  S.lastReport = hex;
-  $("#reportLog").textContent = "reportId "+ev.reportId+" · "+hex;
+  if(!picked){
+    const list = await navigator.hid.requestDevice({ filters:[{ vendorId:AU05_VID, productId:AU05_PID }] });
+    if(!list.length) throw new Error("没有选择设备");
+    picked = list.filter(hasVendorCollection)[0] || null;
+    if(!picked){
+      const pages = list.map(function(d){
+        const ps = (d.collections||[]).map(function(c){ return "0x" + c.usagePage.toString(16); });
+        return ps.join("/") || "未上报";
+      }).join("；");
+      throw new Error("选中的设备没有厂商通道接口（usage page 0xFFFC）。请重新插拔接收器后再选。当前接口 " + pages);
+    }
+  }
+  if(!picked.opened) await picked.open();
+  picked.addEventListener("inputreport", onHidReport);
+  hidDevice = picked;
+  S.device.connected = true;
+  S.device.name = picked.productName || "AU05 接收器";
+  setStatus("已连接 · " + S.device.name, "on");
+  $("#gConnTag").textContent = "设备：" + S.device.name;
+  $("#gConnTag").className = "tag ok";
+  toast("已连接：" + S.device.name);
+  readBattery().catch(function(){});
+  return picked;
+}
+function showBattery(pct){
+  S.device.battery = pct;
+  $("#batteryPill").textContent = "电量 " + pct + "%";
+}
+function onHidReport(ev){
+  let arr = [];
+  for(let i=0;i<ev.data.byteLength;i++) arr.push(ev.data.getUint8(i));
+  const dec = decodeReport(arr);
+  if(!dec) return;
   S.verified = true;
-  $("#gVerTag").textContent = "验证：已收到报文"; $("#gVerTag").className = "tag ok";
-  if(bytes.length){
-    S.device.battery = Math.min(100, 60 + (bytes[0]%40));
-    $("#batteryPill").textContent = "电量 " + S.device.battery + "%";
+  $("#gVerTag").textContent = "验证：已收到协议报文";
+  $("#gVerTag").className = "tag ok";
+  try{
+    const raw = arr.map(function(b){ return b.toString(16).padStart(2,"0"); }).join(" ");
+    const cmd = (dec[0] & 0x1F);
+    $("#reportLog").textContent = "reportId " + (ev.reportId || 0) + " · " + raw + "\n解密后 cmd 0x0" + cmd + " · " + Array.from(dec.slice(0,11)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join(" ");
+  }catch(e){}
+  if((dec[0] & 0x1F) === 0x0B && dec[1] === 0x7B){
+    const mv = dec[2] | (dec[3] << 8), pct = dec[5];
+    if(mv && mv !== 0xFFFF && pct <= 100) showBattery(pct);
+  }
+  if(pendingReq){
+    const p = pendingReq;
+    if(p.match(dec)){
+      pendingReq = null;
+      clearTimeout(p.timer);
+      p.resolve(dec);
+    }
   }
 }
-$("#btnPush").addEventListener("click",async function(){
-  const payload = JSON.stringify({schema:"au05.web/1", device:{model:"AU05",mode:S.mode}, bindings:S.bindings});
-  // 1) 优先走本地 Agent：能真正写入设备与注册全局热键
+async function hidRequest(bytes, matcher, label){
+  const dev = await ensureHid(false);
+  if(pendingReq) throw new Error("上一条指令还没返回");
+  return new Promise(function(resolve, reject){
+    const timer = setTimeout(function(){
+      if(pendingReq){
+        pendingReq = null;
+        reject(new Error((label || "设备指令") + " 超时：1.5 秒内没有收到 0x55 回复"));
+      }
+    }, 1500);
+    pendingReq = { match: matcher, resolve: resolve, timer: timer };
+    const wire = encodeRequest(bytes);
+    dev.sendReport(AU05_REPORT_ID, wire.subarray(1)).catch(function(err){
+      if(pendingReq){ pendingReq = null; clearTimeout(timer); }
+      reject(new Error("发送失败：" + (err && err.message ? err.message : err)));
+    });
+  });
+}
+async function readSlot(index){
+  const dec = await hidRequest(au05ReadRequest(index), function(f){ return au05ParseReadReply(f, index); }, "读取键位 " + index);
+  return au05ParseReadReply(dec, index) || [];
+}
+async function writeSlot(index, entries){
+  await hidRequest(au05WriteRequest(index, entries), function(f){ return au05ParseWriteAck(f, index) ? f : null; }, "写入键位 " + index);
+}
+async function writeAndVerify(index, entries){
+  try{
+    await writeSlot(index, entries);
+    const got = await readSlot(index);
+    if(au05EntriesEqual(got, entries)) return { ok:true, msg:"已写入 · 读回一致" };
+    return { ok:false, msg:"读回不一致（设备不接受该键码）：" + (au05DescribeEntries(got) || "空") };
+  }catch(e){
+    return { ok:false, msg: e.message };
+  }
+}
+async function readBattery(){
+  const dec = await hidRequest(au05BatteryRequest(), function(f){ return au05ParseBattery(f) ? f : null; }, "读取电量");
+  const b = au05ParseBattery(dec);
+  if(!b) return;
+  if(b.percent != null) showBattery(b.percent);
+  $("#batteryPill").title = "电压 " + b.millivolts + " mV · " + (b.charging === true ? "充电中" : b.charging === false ? "未充电" : "充电状态未知");
+}
+
+/* 写入 / 读取对话框 */
+function devOpen(title, sub){
+  $("#devTitle").textContent = title;
+  $("#devSub").textContent = sub;
+  $("#devRows").innerHTML = "";
+  $("#devFoot").textContent = "";
+  $("#devDialog").showModal();
+}
+function devRowAdd(label, value){
+  const el = document.createElement("div");
+  el.className = "dev-row";
+  el.innerHTML = '<span class="dev-name">' + esc(label) + '</span>' +
+    '<span class="dev-val">' + esc(value || "—") + '</span>' +
+    '<span class="dev-st">等待</span>';
+  $("#devRows").appendChild(el);
+  return el;
+}
+function devRowSet(el, state, text, value){
+  if(value != null) el.querySelector(".dev-val").textContent = value;
+  const st = el.querySelector(".dev-st");
+  st.className = "dev-st " + (state || "");
+  st.textContent = text;
+}
+function bindingText(b){
+  if(!b) return "未设置";
+  if(b.type === "hotkey") return hotkeyText(b.value);
+  if(b.type === "media"){
+    const map = { play:"播放/暂停", next:"下一首", prev:"上一首", mute:"静音", volup:"音量+", voldown:"音量-" };
+    return "媒体 · " + (map[b.value] || b.value);
+  }
+  const names = { text:"文本片段", url:"打开网址", app:"打开应用", preset:"切换场景", ai:"AI 指令", plugin:"插件动作" };
+  return (names[b.type] || b.type) + " · " + b.value;
+}
+async function postAgent(payload){
   try{
     const ctrl = new AbortController();
-    const timer = setTimeout(()=>ctrl.abort(), 1500);
+    const timer = setTimeout(function(){ ctrl.abort(); }, 1500);
     const r = await fetch("http://127.0.0.1:17890/apply", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:payload, signal:ctrl.signal
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload), signal:ctrl.signal
     });
     clearTimeout(timer);
-    if(r.ok){
-      const info = await r.json();
-      toast("已通过本地 Agent 保存：" + info.path + "（" + info.bindings + " 条绑定）");
-      $("#agentLog").textContent = "Agent 在线，最近写入：" + new Date().toLocaleTimeString();
-      return;
-    }
-  }catch(e){ /* Agent 不在线，继续尝试 HID */ }
-  // 2) 退回 WebHID 实验通道
-  if(!hidDevice || !S.device.connected){
-    toast("未检测到 Agent，也未连接设备：配置已复制到剪贴板");
-    try{ await navigator.clipboard.writeText(payload); }catch(e){}
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+async function pushToDevice(){
+  let dev;
+  try{
+    dev = await ensureHid(true);
+  }catch(e){
+    toast("未连接设备：" + e.message);
     return;
   }
-  try{
-    const enc = new TextEncoder();
-    const bytes = enc.encode(payload);
-    const chunk = bytes.slice(0, 63); // 单包上限按描述符调整
-    await hidDevice.sendFeatureReport(0x02, chunk);
-    toast("已发送配置（实验通道，" + bytes.length + " 字节）");
-  }catch(e){
-    toast("写入失败：" + e.message + "。配置已保留在本地，可导出给 Agent 写入。");
+  devOpen("写入设备", "按厂商协议（report 0x55 / TEA 加密）写 6 个设备槽位，写完逐个读回校验。双击、长按、按压+旋转这类手势设备不存，需要 Agent 常驻。");
+  const rows = DEVICE_SLOTS.map(function(s){
+    const b = S.bindings[s.id];
+    const el = devRowAdd(s.name, bindingText(b));
+    return { slot:s, binding:b, el:el };
+  });
+  let ok = 0, skipped = 0, hostOnly = 0, fail = 0;
+  for(let i=0;i<rows.length;i++){
+    const r = rows[i];
+    if(!r.binding){ devRowSet(r.el, "muted", "跳过", null); skipped++; continue; }
+    const entries = au05EntriesForBinding(r.binding);
+    if(!entries){ devRowSet(r.el, "warn", "需 Agent", null); hostOnly++; continue; }
+    devRowSet(r.el, "busy", "写入中…", null);
+    const res = await writeAndVerify(r.slot.index, entries);
+    if(res.ok){ devRowSet(r.el, "ok", "已写入", null); ok++; }
+    else{
+      devRowSet(r.el, "err", "失败", null);
+      r.el.title = res.msg;
+      fail++;
+      console.warn("[AU05] slot", r.slot.index, res.msg);
+    }
   }
+  const hostCount = Object.keys(S.bindings).filter(function(id){ return DEVICE_SLOT_IDS.indexOf(id) < 0; }).length;
+  const agentInfo = await postAgent({ schema:"au05.web/1", device:{model:"AU05", mode:S.mode}, bindings:S.bindings });
+  let foot = "设备写入 " + ok + " 条";
+  if(skipped) foot += " · 跳过 " + skipped + " 条未设置";
+  if(hostOnly) foot += " · " + hostOnly + " 条动作类型设备不支持";
+  if(fail) foot += " · 失败 " + fail + " 条，鼠标悬停失败行可看原因";
+  foot += "。另有 " + hostCount + " 条绑定（双击 / 长按 / 文字与应用类）由 Agent 执行，设备不保存。";
+  foot += agentInfo ? "已同步给本地 Agent。" : "本地 Agent 未运行，宿主动作暂不会生效。";
+  $("#devFoot").textContent = foot;
+  if(fail === 0 && ok > 0) toast("已写入设备：" + ok + " 条，读回校验通过");
+  else if(ok > 0) toast("部分写入成功：" + ok + " 条，失败 " + fail + " 条");
+  else toast("没有写入任何键位");
+}
+async function readDeviceTable(){
+  let dev;
+  try{ dev = await ensureHid(true); }catch(e){ toast("未连接设备：" + e.message); return; }
+  devOpen("读取设备键表", "直接读取设备里保存的 6 个槽位，用来核对网页配置与设备是否一致。");
+  const rows = DEVICE_SLOTS.map(function(s){
+    return { slot:s, el: devRowAdd(s.name, "读取中…") };
+  });
+  for(let i=0;i<rows.length;i++){
+    const r = rows[i];
+    try{
+      const entries = await readSlot(r.slot.index);
+      devRowSet(r.el, entries.length ? "ok" : "muted",
+        entries.length ? "已读取" : "空",
+        entries.length ? au05DescribeEntries(entries) : "空");
+    }catch(e){
+      devRowSet(r.el, "err", "失败", null);
+      r.el.title = e.message;
+    }
+  }
+  $("#devFoot").textContent = "读取完成。设备里只存键码，不存文本、应用和宏；那些由 Agent 执行。";
+}
+
+$("#btnHid").addEventListener("click", async function(){
+  try{ await ensureHid(true); }
+  catch(e){ toast("连接失败：" + e.message); }
 });
+$("#btnPush").addEventListener("click", pushToDevice);
+$("#btnReadDev").addEventListener("click", readDeviceTable);
+$("#devClose").addEventListener("click", function(){ $("#devDialog").close(); });
+$("#devCloseX").addEventListener("click", function(){ $("#devDialog").close(); });
+$("#devAgain").addEventListener("click", function(){
+  $("#devDialog").close();
+  setTimeout(function(){ if($("#devTitle").textContent.indexOf("读取") >= 0) readDeviceTable(); else pushToDevice(); }, 50);
+});
+
 $("#modeSelect").addEventListener("change",function(){
   S.mode = this.value; save();
   const label = S.mode==="bt"?"仅蓝牙":S.mode==="dongle"?"仅 2.4G 接收器":"自动检测（优先 2.4G）";
